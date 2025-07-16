@@ -65,7 +65,4 @@ def any_order_match_scorer(actual_trajectory: list, expected_trajectory: list) -
 
 
 if __name__ == "__main__":
-    print(exact_match_scorer(["hi", "hello"], ["hi", "hell", 'hello']))
-    print(exact_match_scorer(["hi", "hello"], ["hi", "hello"]))
-    print(in_order_match_scorer(["hi", "hello", "hell"], ["hi", 'hello']))
-    print(any_order_match_scorer(["hi", "hello"], ["hello", "hi"]))
+    pass

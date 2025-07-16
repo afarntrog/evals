@@ -65,7 +65,7 @@ class TestTrajectoryEvaluator:
         mock_agent_class.assert_called_once_with(
             model=None,
             system_prompt=evaluator.system_prompt,
-            tools = evaluator.tools,
+            tools = evaluator._tools,
             callback_handler=None
         )
         

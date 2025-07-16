@@ -4,6 +4,20 @@ from strands_evaluation.case import Case
 from strands_evaluation.evaluators.llm_evaluator import LLMEvaluator
 
 def output_judge_example():
+   """
+   Demonstrates using an LLM-based evaluator to judge agent outputs.
+   
+   This example:
+   1. Creates test cases
+   2. Creates an LLMEvaluator with a specified rubric
+   3. Creates a dataset with the test cases and evaluator
+   4. Saves the dataset to a JSON file
+   5. Defines a task function that uses an agent to generate responses
+   6. Runs evaluations and returns the report
+   
+   Returns:
+      EvaluationReport: The evaluation results
+   """
    ### Step 1: Create test cases ###
    test_case1 = Case[str, str](name = "knowledge-1",
                                  input="What is the capital of France?",
@@ -25,6 +39,8 @@ def output_judge_example():
    ### Step 3: Create dataset ###                                                                
    dataset = Dataset[str, str](cases = [test_case1, test_case2],
                                              evaluator = LLM_judge)
+   ### Step 3.5: Save the dataset ###
+   dataset.to_file("judge_output_dataset", "json")
 
    ### Step 4: Define task ###                                      
    # simple example here but could be more complex depending on the user's needs
@@ -40,3 +56,4 @@ if __name__ == "__main__":
    # run the file as a module: eg. python -m examples.judge_output 
    report = output_judge_example()
    report.display()
+   report.to_file("judge_output_report", "json")

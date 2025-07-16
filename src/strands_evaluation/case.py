@@ -1,6 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, Generic
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, Generic, Any
 
 InputT = TypeVar("InputT")
 OutputT = TypeVar("OutputT")
@@ -29,8 +28,8 @@ class Case(BaseModel, Generic[InputT, OutputT]):
         
         simple_test_case = Case(input="What is 2x2?")                
     """
-    name: Optional[str] = None
+    name: str | None = None
     input: InputT
-    expected_output: Optional[OutputT] = None
-    expected_trajectory: Optional[list[Any]] = None
-    metadata: Dict[str, Any] = {}
+    expected_output: OutputT | None = None
+    expected_trajectory: list[Any] | None = None
+    metadata: dict[str, Any] = {}

@@ -1,10 +1,15 @@
 from pydantic import BaseModel
-from typing import Dict, Any, Generic, Callable
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, Generic, Any
+from collections.abc import Callable
 
 from .case import Case
 from .types.evaluation import EvaluationData, EvaluationReport
 from .evaluators.evaluator import Evaluator
+from .evaluators.trajectory_evaluator import TrajectoryEvaluator
+from .evaluators.llm_evaluator import LLMEvaluator
+
+import json
+import os
 
 InputT = TypeVar("InputT")
 OutputT = TypeVar("OutputT")
@@ -40,7 +45,7 @@ class Dataset(BaseModel, Generic[InputT, OutputT]):
     cases: list[Case[InputT, OutputT]]
     evaluator: Evaluator[InputT, OutputT]
 
-    def _run_task(self, task: Callable[[InputT], OutputT | Dict[str, Any]], case: Case[InputT, OutputT]) -> EvaluationData[InputT, OutputT]:       
+    def _run_task(self, task: Callable[[InputT], OutputT | dict[str, Any]], case: Case[InputT, OutputT]) -> EvaluationData[InputT, OutputT]:       
         """
         Run the task with the inputs from the test case.
 
@@ -64,7 +69,7 @@ class Dataset(BaseModel, Generic[InputT, OutputT]):
             evaluation_context.actual_output = task_output
         return evaluation_context
 
-    def run_evaluations(self, task: Callable[[InputT], OutputT | Dict[str, Any]]) -> EvaluationReport:
+    def run_evaluations(self, task: Callable[[InputT], OutputT | dict[str, Any]]) -> EvaluationReport:
         """
         Run the evaluations for all of the test cases with the evaluator.
 
@@ -103,6 +108,85 @@ class Dataset(BaseModel, Generic[InputT, OutputT]):
 
         return report
     
+    def to_dict(self) -> dict:
+        """
+        Convert the dataset to a dictionary.
+        
+        Return:
+            A dictionary representation of the dataset.
+        """
+        return {
+            "cases": [case.model_dump() for case in self.cases],
+            "evaluator": self.evaluator.to_dict()
+        }
+    
+    def to_file(self, file_name: str, format: str, directory: str = "dataset_files"):
+        """
+        Write the dataset to a file.
+
+        Args:
+            file_name: Name of the file without extension.
+            format: The format of the file to be saved.
+            directory: Directory to save the file (default: "dataset_files").
+        """
+        os.makedirs(directory, exist_ok=True)      
+        if format == "json":
+            with open(f"{directory}/{file_name}.json", "w") as f:
+                json.dump(self.to_dict(), f, indent=2)
+        else:
+            raise Exception(f"Format {format} is not supported.")
+    
+    @classmethod
+    def from_dict(cls, data: dict, custom_evaluators: list[Evaluator] = []):
+        """
+        Create a dataset from a dictionary.
+
+        Args:
+            data: A dictionary representation of the dataset.
+            custom_evaluators: A list of relevant custom evaluators.
+
+        Return:
+            A Dataset object.
+        """
+        cases = [Case.model_validate(case_data) for case_data in data["cases"]]
+        default_evaluators = {"Evaluator": Evaluator,
+                            "LLMEvaluator": LLMEvaluator,
+                            "TrajectoryEvaluator": TrajectoryEvaluator}
+        all_evaluators = {**default_evaluators, **{v.get_type_name(): v for v in custom_evaluators}}
+
+        evaluator_type = data["evaluator"]["evaluator_type"]
+        evaluator_args = {k:v for k,v in data["evaluator"].items() if k != "evaluator_type"}
+ 
+        if evaluator_type in all_evaluators:
+            evaluator = all_evaluators[evaluator_type](**evaluator_args)
+        else:
+           raise Exception(f"Cannot find {evaluator_type}. Make sure the evaluator type is spelled correctly and all relevant custom evaluators are passed in.")
+           
+        return cls(cases=cases, evaluator=evaluator)
+    
+    @classmethod
+    def from_file(cls, file_path: str, format: str, custom_evaluators: list[Evaluator] = []):
+        """
+        Create a dataset from a file.
+
+        Args:
+            file_path: Path to the file.
+            format: The format of the file to be read.
+            custom_evaluators: A list of relevant custom evaluators.
+
+        Return:
+            A Dataset object.
+        """
+        if format == "json":
+            with open(file_path, "r") as f:
+                data = json.load(f)
+        else:
+            raise Exception(f"Format {format} is not supported.")
+
+        return cls.from_dict(data, custom_evaluators)
+
 
 if __name__ == "__main__":
-  pass
+    pass
+
+

@@ -6,6 +6,20 @@ from strands_evaluation.evaluators.evaluator import Evaluator
 from strands_evaluation.types.evaluation import EvaluationOutput, EvaluationData
 
 def simple_example():
+    """
+    Demonstrates creating and using a custom evaluator with ROUGE score metrics.
+    
+    This example:
+    1. Creates test cases with expected outputs
+    2. Defines a custom evaluator using ROUGE similarity scoring
+    3. Creates a dataset with the test cases and evaluator
+    4. Saves the dataset to a JSON file
+    5. Defines a task function that uses an agent to generate responses
+    6. Runs evaluations and returns the report
+    
+    Returns:
+        EvaluationReport: The evaluation results
+    """
     ### Step 1: Create test cases ###
     test_case1 = Case[str, str](name = "knowledge-1",
                                     input="What is the capital of France?",
@@ -29,6 +43,8 @@ def simple_example():
     ### Step 3: Create dataset ###                                    
     dataset = Dataset[str, str](cases = [test_case1, test_case2],
                                 evaluator = TestSimilarityEvaluator())
+    ### Step 3.5: Save the dataset ###
+    dataset.to_file("custom_evaluator_dataset", "json")
     
     ### Step 4: Define task ###  
     def get_response(query: str) -> str:
@@ -45,3 +61,4 @@ if __name__ == "__main__":
     report = simple_example()
     # print(report)
     report.display(include_input=False)
+    report.to_file("custom_report", "json")

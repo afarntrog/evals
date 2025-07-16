@@ -1,9 +1,10 @@
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, Generic
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, Generic, Any
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
+import json
+import os
 
 InputT = TypeVar("InputT")
 OutputT = TypeVar("OutputT")
@@ -22,11 +23,11 @@ class EvaluationData(BaseModel, Generic[InputT, OutputT]):
         metadata: Additional information about the test case.
     """
     input: InputT
-    actual_output: Optional[OutputT] = None
-    name: Optional[str] = None
-    expected_output: Optional[OutputT] = None
-    expected_trajectory: Optional[list[Any]] = None
-    actual_trajectory: Optional[list[Any]] = None
+    actual_output: OutputT | None = None
+    name: str | None = None
+    expected_output: OutputT | None = None
+    expected_trajectory: list[Any] | None = None
+    actual_trajectory: list[Any] | None = None
     metadata: dict = {}
 
 class EvaluationReport(BaseModel):
@@ -42,9 +43,9 @@ class EvaluationReport(BaseModel):
     """
     overall_score: float
     scores: list[float]
-    cases: list[Dict]
+    cases: list[dict]
     test_passes: list[bool]
-    reasons: Optional[list[str]] = []
+    reasons: list[str] | None = []
 
     def __str__(self):
         """
@@ -91,6 +92,60 @@ class EvaluationReport(BaseModel):
             table.add_row(*renderables)
         
         console.print(table)
+    
+    def to_dict(self):
+        """
+        Returns a dictionary representation of the report.
+        """
+        return self.model_dump()
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        """
+        Create an EvaluationReport instance from a dictionary.
+
+        Args:
+            data: A dictionary containing the report data.
+        """
+        return cls.model_validate(data)
+
+    def to_file(self, file_name: str, format: str, directory: str = "report_files"):
+        """
+        Write the report to a file.
+
+        Args:
+            file_name: Name of the file without extension.
+            format: The format of the file to be saved.
+            directory: Directory to save the file (default: "report_files").
+        """
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        if format == "json":
+            with open(f"{directory}/{file_name}.json", "w") as f:
+                json.dump(self.to_dict(), f, indent = 2)
+        else:
+            raise ValueError(f"Unsupported format: {format}")
+    
+    @classmethod
+    def from_file(cls, file_path: str, format: str):
+        """
+        Create an EvaluationReport instance from a file.
+
+        Args:
+            file_path: Path to the file.
+            format: The format of the file to be read.
+
+        Return:
+            An EvaluationReport object.
+        """
+        if format == "json":
+            with open(file_path, "r") as f:
+                data = json.load(f)
+        else:
+            raise ValueError(f"Unsupported format: {format}")
+
+        return cls.from_dict(data)
 
 class EvaluationOutput(BaseModel):
     """
@@ -103,4 +158,4 @@ class EvaluationOutput(BaseModel):
     """
     score: float
     test_pass: bool
-    reason: Optional[str] = None
+    reason: str | None = None

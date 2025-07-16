@@ -10,6 +10,21 @@ from langchain_aws import BedrockLLM
 from langchain.evaluation.criteria import CriteriaEvalChain
 
 def third_party_example():
+    """
+    Demonstrates integrating a third-party evaluator (LangChain) with the evaluation framework.
+    
+    This example:
+    1. Creates test cases with expected outputs
+    2. Creates a custom evaluator that wraps LangChain's CriteriaEvalChain
+    3. Initializes the LangChain evaluator with Bedrock LLM
+    4. Creates a dataset with the test cases and evaluator
+    5. Saves the dataset to a JSON file
+    6. Defines a task function that uses an agent to generate responses
+    7. Runs evaluations and returns the report
+    
+    Returns:
+        EvaluationReport: The evaluation results
+    """
     ### Step 1: Create test cases ###
     test_case1 = Case[str, str](name = "knowledge-1",
                                     input="What is the capital of France?",
@@ -54,11 +69,13 @@ def third_party_example():
             # Make sure to return the correct type
             return EvaluationOutput(score=result["score"], test_pass= True if result["score"] > .5 else False, reason = result["reasoning"])
                
-            
     ### Step 3: Create dataset ###                                    
     dataset = Dataset[str, str](cases = [test_case1, test_case2],
                                 evaluator = TestSimilarityEvaluator())
     
+    ### Step 3.5: Save the dataset ###
+    dataset.to_file("third_party_dataset", "json")
+
     ### Step 4: Define task ###  
     def get_response(query: str) -> str:
         agent = Agent(callback_handler=None)
@@ -68,10 +85,9 @@ def third_party_example():
     report = dataset.run_evaluations(get_response)
     return report
 
-
-
 if __name__ == "__main__":
     # run the file as a module: eg. python -m examples.third_party_evaluator 
     report = third_party_example()
-    # print(report)
     report.display(include_input=False)
+    report.to_file("third_party_trajectory_report", "json")
+

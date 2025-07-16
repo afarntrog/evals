@@ -89,3 +89,10 @@ class TestEvaluator:
         result = evaluator.evaluate(evaluation_data)
         assert result.score == 1.0
         assert result.test_pass == True
+
+    def test_to_dict_evaluator(self):
+        """Test that evaluator to_dict works properly"""
+        evaluator = Evaluator()
+        evaluator_dict = evaluator.to_dict()
+        assert evaluator_dict["evaluator_type"] == "Evaluator"
+        assert len(evaluator_dict) == 1

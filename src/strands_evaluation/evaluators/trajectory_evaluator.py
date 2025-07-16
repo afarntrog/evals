@@ -1,14 +1,13 @@
-from typing import Optional
 from typing_extensions import TypeVar
 
 from .evaluator import Evaluator
 from ..types.evaluation import EvaluationData, EvaluationOutput
-from .prompt_templates import judge_trajectory_template_tools as SYSTEM_PROMPT
+from .utils.prompt_templates import judge_trajectory_template_tools as SYSTEM_PROMPT
 from strands import Agent
-from .evaluation_tools import exact_match_scorer, in_order_match_scorer, any_order_match_scorer
+from .utils.evaluation_tools import exact_match_scorer, in_order_match_scorer, any_order_match_scorer
 
 InputT = TypeVar("InputT")
-OutputT = TypeVar("OutputT",)
+OutputT = TypeVar("OutputT")
 
 class TrajectoryEvaluator(Evaluator[InputT, OutputT]):
     """
@@ -16,19 +15,19 @@ class TrajectoryEvaluator(Evaluator[InputT, OutputT]):
 
     Attributes:
         rubric: The user-specified criteria for evaluating a collection of test cases.
-        model: Provider for running inference or a string representing the model-id for Bedrock to use.
+        model: A string representing the model-id for Bedrock to use.
                     Defaults to strands.models.BedrockModel if None.
         system_prompt: System prompt to guide model behavior.
                     If None, the evaluator will use one of the default template.
         include_inputs: Whether to include inputs to the task in the evaluation or not.
     """
-    def __init__(self, rubric: str, model: Optional[str] = None, system_prompt: Optional[str] = SYSTEM_PROMPT,
-                include_inputs: Optional[bool] = True):
+    def __init__(self, rubric: str, model: str | None = None, system_prompt: str = SYSTEM_PROMPT,
+                include_inputs: bool = True):
         super().__init__()
         self.rubric = rubric
         self.model = model
         self.include_inputs = include_inputs
-        self.tools = [exact_match_scorer, in_order_match_scorer, any_order_match_scorer]
+        self._tools = [exact_match_scorer, in_order_match_scorer, any_order_match_scorer]
         self.system_prompt = system_prompt
 
     def evaluate(self, evaluation_case: EvaluationData[InputT, OutputT]) -> EvaluationOutput:
@@ -40,7 +39,7 @@ class TrajectoryEvaluator(Evaluator[InputT, OutputT]):
         """
         evaluator_agent = Agent(model=self.model,
                                 system_prompt=self.system_prompt,
-                                tools = self.tools,
+                                tools = self._tools,
                                 callback_handler=None)
         evaluation_prompt = "Evaluate this singular test case. THE FINAL SCORE MUST BE A DECIMAL BETWEEN 0.0 AND 1.0 (NOT 0 to 10 OR 0 to 100). \n"
         if self.include_inputs:   
@@ -62,3 +61,6 @@ class TrajectoryEvaluator(Evaluator[InputT, OutputT]):
 
         result = evaluator_agent.structured_output(EvaluationOutput, evaluation_prompt)
         return result
+    
+if __name__ == "__main__":
+    pass

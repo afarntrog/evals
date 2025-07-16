@@ -125,4 +125,5 @@ class TestLLMEvaluator:
         
         with pytest.raises(Exception, match="Please make sure the task function return the output"):
             evaluator.evaluate(evaluation_data)
+
     

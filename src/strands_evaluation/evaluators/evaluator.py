@@ -1,6 +1,6 @@
-from typing import Generic
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, Generic
 from dataclasses import dataclass
+import inspect
 
 InputT = TypeVar("InputT")
 OutputT = TypeVar("OutputT")
@@ -26,3 +26,35 @@ class Evaluator(Generic[InputT, OutputT]):
             NotImplementedError: This method is not implemented in the base class.
         """
         raise NotImplementedError("This method should be implemented in subclasses.")
+    
+    @classmethod
+    def get_type_name(cls) -> str:
+        """
+        Get the name of the evaluator type.
+
+        Returns:
+            str: The name of the evaluator type.
+        """
+        return cls.__name__
+
+    def to_dict(self) -> dict:
+        """
+        Convert the evaluator into a dictionary.
+        
+        Returns:
+            dict: A dictionary containing the evaluator's information. Omit private attributes
+            (attributes starting with '_') and attributes with default values.
+        """
+        _dict = {"evaluator_type": self.get_type_name()}
+
+        # Get default values from __init__ signature
+        sig = inspect.signature(self.__init__)
+        defaults = {k: v.default for k, v in sig.parameters.items() if v.default != inspect.Parameter.empty}
+        for k, v in self.__dict__.items():
+            if not k.startswith('_') and (k not in defaults or v != defaults[k]):
+                _dict[k] = v
+        return _dict
+
+    
+if __name__ == "__main__":
+    pass

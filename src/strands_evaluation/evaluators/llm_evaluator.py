@@ -1,9 +1,8 @@
-from typing import Optional
 from typing_extensions import TypeVar
 
 from .evaluator import Evaluator
 from ..types.evaluation import EvaluationData, EvaluationOutput
-from .prompt_templates import judge_output_template as SYSTEM_PROMPT
+from .utils.prompt_templates import judge_output_template as SYSTEM_PROMPT
 from strands import Agent
 
 InputT = TypeVar("InputT")
@@ -15,14 +14,14 @@ class LLMEvaluator(Evaluator[InputT, OutputT]):
 
     Attributes:
         rubric: The user-specified criteria for evaluating a collection of test cases.
-        model: Provider for running inference or a string representing the model-id for Bedrock to use.
+        model: A string representing the model-id for Bedrock to use.
                     Defaults to strands.models.BedrockModel if None.
         system_prompt: System prompt to guide model behavior.
                     If None, the evaluator will use one of the default template.
         include_inputs: Whether to include inputs to the task in the evaluation or not.
     """
-    def __init__(self, rubric: str, model: Optional[str] = None,
-                system_prompt: Optional[str] = SYSTEM_PROMPT, include_inputs: Optional[bool] = True):
+    def __init__(self, rubric: str, model: str | None = None,
+                system_prompt: str = SYSTEM_PROMPT, include_inputs: bool = True):
         super().__init__()
         self.rubric = rubric
         self.model = model
@@ -51,3 +50,7 @@ class LLMEvaluator(Evaluator[InputT, OutputT]):
 
         result = evaluator_agent.structured_output(EvaluationOutput, evaluation_prompt)
         return result
+    
+if __name__ == "__main__":
+    pass
+
