@@ -2,7 +2,8 @@ from strands import Agent
 from strands_tools import calculator
 from strands_evaluation.dataset import Dataset 
 from strands_evaluation.evaluators.evaluator import Evaluator
-from strands_evaluation.types.evaluation import EvaluationOutput, EvaluationData, EvaluationReport
+from strands_evaluation.types.evaluation import EvaluationOutput, EvaluationData
+from strands_evaluation.types.evaluation_report import EvaluationReport
 
 ### You can only run this file if you have all of the relevant json files from the examples ###
 
@@ -95,5 +96,5 @@ if __name__ == "__main__":
     for f, t in zip(files, tasks):
         report = from_file_example(f, t, custom_evaluators=[TestSimilarityEvaluator])
         print(f"File: {f}")
-        report.display()
+        print(report)
         print("\n")
