@@ -85,7 +85,7 @@ judge_trajectory_template_tools = """You are an expert evaluator that assesses t
 - <ExpectedOutput>: Optional reference for what the output should be
 - <Trajectory>: Sequence of steps or tools that were actually executed
 - <ExpectedTrajectory>: Optional reference for what the trajectory should be
-- <TrajectoryTypes>: Optional description of available trajectory type when evaluating trajectories
+- <TrajectoryDescription>: Optional description of available trajectory type when evaluating trajectories
 - <Rubric>: Evaluation criteria for scoring
 
 IMPORTANT: The <Trajectory> represents the actual sequence of tools/actions that were executed to generate the output.
@@ -131,6 +131,7 @@ judge_interactions_template = """You are an expert evaluator that assesses multi
 - <Input>: Optional original input that initiated the interaction sequence
 - <Output>: Optional final output (only provided for the last interaction)
 - <ExpectedOutput>: Optional reference for what the final output should be
+- <InteractionDescription>: Optional description of the type of interactions being evaluated (e.g., multi-agent, sequential, parallel)
 - <Rubric>: Evaluation criteria specific to the current node/interaction
 
 Your task is to evaluate each interaction step-by-step, building context as you progress through the sequence and keeping track of problematic interactions. For intermediate interactions, focus on:

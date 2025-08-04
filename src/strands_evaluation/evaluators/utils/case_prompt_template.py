@@ -46,7 +46,7 @@ def compose_test_prompt(evaluation_case: EvaluationData[InputT, OutputT], rubric
             evaluation_prompt += f"<ExpectedTrajectory>{evaluation_case.expected_trajectory}</ExpectedTrajectory>\n"
 
         if trajectory_description:
-            evaluation_prompt += f"<TrajectoryTypes>{trajectory_description}</TrajectoryTypes>\n"
+            evaluation_prompt += f"<TrajectoryDescription>{trajectory_description}</TrajectoryDescription>\n"
 
     evaluation_prompt += f"<Rubric>{rubric}</Rubric>"
 

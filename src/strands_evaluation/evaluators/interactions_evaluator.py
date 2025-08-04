@@ -17,19 +17,30 @@ class InteractionsEvaluator(Evaluator[InputT, OutputT]):
         rubric: The user-specified criteria for evaluating a collection of test cases.
             if the rubric is a string, then use the same rubric for all of the evaluations, else
             get the node-specific rubric for evaluation.
+        interaction_description: A dictionary describing the evailable interactions.
         model: A string representing the model-id for Bedrock to use.
                     Defaults to strands.models.BedrockModel if None.
         system_prompt: System prompt to guide model behavior.
                     If None, the evaluator will use one of the default template.
         include_inputs: Whether to include inputs to the task in the evaluation or not.
     """
-    def __init__(self, rubric: str | dict[str, str], model: str | None = None, system_prompt: str = SYSTEM_PROMPT,
+    def __init__(self, rubric: str | dict[str, str], interaction_description: dict | None = None, model: str | None = None, system_prompt: str = SYSTEM_PROMPT,
                 include_inputs: bool = True):
         super().__init__()
         self.rubric = rubric
+        self.interaction_description = interaction_description
         self.model = model
         self.include_inputs = include_inputs
         self.system_prompt = system_prompt
+    
+    def update_interaction_description(self, new_description: dict) -> None:
+        """
+        Update the description of the available interactions.
+
+        Args:
+            new_description: The new description of the available interactions.
+        """
+        self.interaction_description = new_description
     
     def _get_node_rubric(self, node_name: str) -> str:
         """
@@ -100,6 +111,9 @@ class InteractionsEvaluator(Evaluator[InputT, OutputT]):
             if evaluation_case.expected_output:
                 evaluation_prompt += f"<ExpectedOutput>{evaluation_case.expected_output}</ExpectedOutput>\n"
         
+        if self.interaction_description:
+            evaluation_prompt += f"<InteractionDescription>{self.interaction_description}</InteractionDescription>\n"
+            
         evaluation_prompt += f"<Rubric>{self._get_node_rubric(node_name)}</Rubric>"
 
         return evaluation_prompt
