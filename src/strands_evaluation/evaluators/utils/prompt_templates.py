@@ -85,7 +85,7 @@ judge_trajectory_template_tools = """You are an expert evaluator that assesses t
 - <ExpectedOutput>: Optional reference for what the output should be
 - <Trajectory>: Sequence of steps or tools that were actually executed
 - <ExpectedTrajectory>: Optional reference for what the trajectory should be
-- <TrajectoryTypes>: Optional description of trajectory type when evaluating trajectories
+- <TrajectoryDescription>: Optional description of available trajectory type when evaluating trajectories
 - <Rubric>: Evaluation criteria for scoring
 
 IMPORTANT: The <Trajectory> represents the actual sequence of tools/actions that were executed to generate the output.
@@ -121,4 +121,56 @@ Adjustment: Perfect tool choice for mathematical calculation
 Tool choice: any_order_match_scorer([python_repl], [calculator]) = 0.0
 Adjustment: Output is correct but suboptimal tool choice
 {"reason": "While python_repl can solve math problems, calculator would be more efficient for simple arithmetic. The trajectory choice is functional but not optimal.", "test_pass": false, "score": 0.4}
+"""
+
+
+judge_interactions_template = """You are an expert evaluator that assesses multi-agent interactions according to a user-specified rubric. You'll receive:
+- <Interaction>: Current interaction with node name, dependencies, and message
+- <ExpectedSequence>: Optional high-level sequence of expected node names for context
+- <RelevantExpectedInteraction>: Optional window of 1-3 detailed expected interactions around the current position
+- <Input>: Optional original input that initiated the interaction sequence
+- <Output>: Optional final output (only provided for the last interaction)
+- <ExpectedOutput>: Optional reference for what the final output should be
+- <InteractionDescription>: Optional description of the type of interactions being evaluated (e.g., multi-agent, sequential, parallel)
+- <Rubric>: Evaluation criteria specific to the current node/interaction
+
+Your task is to evaluate each interaction step-by-step, building context as you progress through the sequence and keeping track of problematic interactions. For intermediate interactions, focus on:
+- Appropriateness of the node's response given its dependencies and rubric
+- Quality of information passed between agents
+- Logical flow and coherence in the interaction chain
+
+For the final interaction, also consider:
+- Overall effectiveness of the multi-agent collaboration
+- Whether the final output meets expectations
+- How well the interaction sequence achieved the original input goal
+- Which agents contributed most to the final output 
+- Which agents were problematic
+
+Provide concise reasoning that builds upon previous interactions when evaluating later steps.
+
+Examples:
+
+<Interaction>Node Name: planner, Depends on [] 
+Message: I need to break down this complex task into steps: 1) Research the topic 2) Analyze findings 3) Generate summary</Interaction>
+<Input>Analyze the impact of climate change on agriculture</Input>
+<Rubric>Pass if the planner provides a logical breakdown of the task. Score 0-1 based on completeness and appropriateness.</Rubric>
+{"reason": "The planner correctly identifies the key steps needed for climate change analysis: research, analysis, and summary generation. The breakdown is logical and comprehensive.", "test_pass": true, "score": 0.9}
+
+<Interaction>Node Name: researcher, Depends on [planner] 
+Message: Based on the plan, I found key impacts: reduced crop yields in drought-prone areas, shifting growing seasons, and increased pest pressure.</Interaction>
+<ExpectedSequence>[planner, researcher, summarizer]</ExpectedSequence>
+<RelevantExpectedInteraction>
+Node Name: researcher, Depends on [planner], Message: Research shows climate change affects agriculture through temperature changes, precipitation patterns, and extreme weather events.
+</RelevantExpectedInteraction>
+<Input>Analyze the impact of climate change on agriculture</Input>
+<Rubric>Pass if the researcher provides relevant findings based on the planner's guidance. Score 0-1 based on relevance and quality.</Rubric>
+{"reason": "The researcher successfully followed the planner's guidance and provided specific, relevant findings about climate change impacts on agriculture. While the actual findings differ from expected (focusing on specific impacts vs general categories), both approaches are valid and the actual response is more detailed and actionable.", "test_pass": true, "score": 0.9}
+
+<Interaction>Node Name: summarizer, Depends on [planner, researcher] 
+Message: Climate change significantly impacts agriculture through three main channels: drought reduces yields, seasonal shifts disrupt planting, and warmer temperatures increase pests.</Interaction>
+<Input>Analyze the impact of climate change on agriculture</Input>
+<Output>Climate change significantly impacts agriculture through three main channels: drought reduces yields, seasonal shifts disrupt planting, and warmer temperatures increase pests.</Output>
+<ExpectedOutput>Climate change affects agriculture by reducing crop yields, altering growing seasons, and increasing pest problems.</ExpectedOutput>
+<Rubric>Pass if the summarizer effectively synthesizes information from previous agents. Score 0-1 based on synthesis quality and final output accuracy.</Rubric>
+{"reason": "The summarizer effectively synthesized information from both the planner's structure and researcher's findings. The final output captures all key impacts mentioned by the researcher and presents them coherently. The collaboration sequence worked well to achieve the analysis goal.", "test_pass": true, "score": 0.9}
 """

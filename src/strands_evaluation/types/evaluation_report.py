@@ -24,21 +24,25 @@ class EvaluationReport(BaseModel):
     test_passes: list[bool]
     reasons: list[str] | None = []
 
-    def _display(self, static: bool = True, include_input: bool = True, include_output: bool = True,
+    def _display(self, static: bool = True, include_input: bool = True, include_actual_output: bool = False,
                 include_expected_output: bool = False, include_expected_trajectory: bool = False,
-                include_actual_trajectory: bool = False, include_meta: bool = False):
+                include_actual_trajectory: bool = False, 
+                include_actual_interactions: bool = False, include_expected_interactions: bool = False,
+                include_meta: bool = False):
         """
         Render an interface of the report with as much details as configured using Rich.
 
         Args:
             static: Whether to render the interface as interactive or static.
             include_input: Whether to include the input in the display. Defaults to True.
-            include_output: Whether to include the actual output in the display. Defaults to True.
+            include_actual_output: Whether to include the actual output in the display. Defaults to False.
             include_expected_output: Whether to include the expected output in the display. Defaults to False.
             include_expected_trajectory: Whether to include the expected trajectory in the display. Defaults to False.
             include_actual_trajectory: Whether to include the actual trajectory in the display. Defaults to False.
+            include_actual_interactions: Whether to include the actual interactions in the display. Defaults to False.
+            include_expected_interactions: Whether to include the expected interactions in the display. Defaults to False.
             include_meta: Whether to include metadata in the display. Defaults to False.
-            
+           
         Note:
             This method provides an interactive console interface where users can expand or collapse
             individual test cases to view more or less detail.
@@ -55,7 +59,7 @@ class EvaluationReport(BaseModel):
                             }
             if include_input:
                 details_dict["input"] = str(self.cases[i].get("input"))
-            if include_output:
+            if include_actual_output:
                 details_dict["actual_output"] = str(self.cases[i].get("actual_output"))
             if include_expected_output:
                 details_dict["expected_output"] = str(self.cases[i].get("expected_output"))
@@ -63,6 +67,10 @@ class EvaluationReport(BaseModel):
                 details_dict["actual_trajectory"] = str(self.cases[i].get("actual_trajectory"))
             if include_expected_trajectory:
                 details_dict["expected_trajectory"] = str(self.cases[i].get("expected_trajectory"))
+            if include_actual_interactions:
+                details_dict["actual_interactions"] = str(self.cases[i].get("actual_interactions"))
+            if include_expected_interactions:
+                details_dict["expected_interactions"] = str(self.cases[i].get("expected_interactions"))
             if include_meta:
                 details_dict["metadata"] = str(self.cases[i].get("metadata"))
             
@@ -74,44 +82,54 @@ class EvaluationReport(BaseModel):
         display_console = CollapsibleTableReportDisplay(items = report_data, overall_score = self.overall_score)
         display_console.run(static = static)
 
-    def display(self, include_input: bool = True, include_output: bool = True,
+    def display(self, include_input: bool = True, include_actual_output: bool = False,
                 include_expected_output: bool = False, include_expected_trajectory: bool = False,
-                include_actual_trajectory: bool = False, include_meta: bool = False):
+                include_actual_trajectory: bool = False, include_actual_interactions: bool = False, include_expected_interactions: bool = False,
+                include_meta: bool = False):
         """
         Render the report with as much details as configured using Rich. Use run_display if want
         to interact with the table.
 
         Args:
             include_input: Whether to include the input in the display. Defaults to True.
-            include_output: Whether to include the actual output in the display. Defaults to True.
+            include_actual_output: Whether to include the actual output in the display. Defaults to False.
             include_expected_output: Whether to include the expected output in the display. Defaults to False.
             include_expected_trajectory: Whether to include the expected trajectory in the display. Defaults to False.
             include_actual_trajectory: Whether to include the actual trajectory in the display. Defaults to False.
+            include_actual_interactions: Whether to include the actual interactions in the display. Defaults to False.
+            include_expected_interactions: Whether to include the expected interactions in the display. Defaults to False.
             include_meta: Whether to include metadata in the display. Defaults to False.
         """
-        self._display(static = True, include_input = include_input, include_output = include_output,
-                      include_expected_output = include_expected_output,
-                      include_expected_trajectory = include_expected_trajectory,
-                      include_actual_trajectory = include_actual_trajectory, include_meta = include_meta)
+        self._display(static = True, include_input = include_input, include_actual_output = include_actual_output,
+                    include_expected_output = include_expected_output,
+                    include_expected_trajectory = include_expected_trajectory,
+                    include_actual_trajectory = include_actual_trajectory, 
+                    include_actual_interactions=include_actual_interactions, include_expected_interactions=include_expected_interactions,
+                    include_meta = include_meta)
     
-    def run_display(self, include_input: bool = True, include_output: bool = True,
+    def run_display(self, include_input: bool = True, include_actual_output: bool = False,
                 include_expected_output: bool = False, include_expected_trajectory: bool = False,
-                include_actual_trajectory: bool = False, include_meta: bool = False):
+                include_actual_trajectory: bool = False, include_actual_interactions: bool = False, include_expected_interactions: bool = False,
+                include_meta: bool = False):
         """
         Render the report interactively with as much details as configured using Rich.
 
         Args:
             include_input: Whether to include the input in the display. Defaults to True.
-            include_output: Whether to include the actual output in the display. Defaults to True.
+            include_actual_output: Whether to include the actual output in the display. Defaults to False.
             include_expected_output: Whether to include the expected output in the display. Defaults to False.
             include_expected_trajectory: Whether to include the expected trajectory in the display. Defaults to False.
             include_actual_trajectory: Whether to include the actual trajectory in the display. Defaults to False.
+            include_actual_interactions: Whether to include the actual interactions in the display. Defaults to False.
+            include_expected_interactions: Whether to include the expected interactions in the display. Defaults to False.
             include_meta: Whether to include metadata in the display. Defaults to False.
         """
-        self._display(static = False, include_input = include_input, include_output = include_output,
-                      include_expected_output = include_expected_output,
-                      include_expected_trajectory = include_expected_trajectory,
-                      include_actual_trajectory = include_actual_trajectory, include_meta = include_meta)
+        self._display(static = False, include_input = include_input, include_actual_output = include_actual_output,
+                    include_expected_output = include_expected_output,
+                    include_expected_trajectory = include_expected_trajectory,
+                    include_actual_trajectory = include_actual_trajectory,
+                    include_actual_interactions=include_actual_interactions, include_expected_interactions=include_expected_interactions,
+                    include_meta = include_meta)
 
     def to_dict(self):
         """

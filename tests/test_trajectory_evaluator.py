@@ -237,3 +237,18 @@ class TestTrajectoryEvaluator:
         
         with pytest.raises(Exception, match="Please make sure the task function return a dictionary with the key 'trajectory'"):
             await evaluator.evaluate_async(evaluation_data)
+    
+    def test_update_trajectory_description(self):
+        """Test updating trajectory description"""
+        initial_description = {"tool1": "Initial description"}
+        evaluator = TrajectoryEvaluator(
+            rubric="Test rubric", 
+            trajectory_description=initial_description
+        )
+        
+        assert evaluator.trajectory_description == initial_description
+        
+        new_description = {"tool1": "Updated description", "tool2": "New tool"}
+        evaluator.update_trajectory_description(new_description)
+        
+        assert evaluator.trajectory_description == new_description

@@ -16,6 +16,8 @@ class EvaluationData(BaseModel, Generic[InputT, OutputT]):
         expected_trajectory: The expected trajectory of a task given the input. 
         name: The name of the test case. This will be used to identify the test in the summary report.
         metadata: Additional information about the test case.
+        actual_interactions: The actual interaction sequence given the input.
+        expected_interactions: The expected interaction sequence given the input.
     """
     input: InputT
     actual_output: OutputT | None = None
@@ -24,6 +26,8 @@ class EvaluationData(BaseModel, Generic[InputT, OutputT]):
     expected_trajectory: list[Any] | None = None
     actual_trajectory: list[Any] | None = None
     metadata: dict = {}
+    actual_interactions: list[dict] | None = None
+    expected_interactions: list[dict] | None = None
 
 class EvaluationOutput(BaseModel):
     """

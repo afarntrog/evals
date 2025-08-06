@@ -3,11 +3,12 @@ from typing_extensions import TypeVar, Generic, Any
 from collections.abc import Callable
 
 from .case import Case
-from .types.evaluation import EvaluationData, EvaluationOutput
+from .types.evaluation import EvaluationData
 from .types.evaluation_report import EvaluationReport
 from .evaluators.evaluator import Evaluator
 from .evaluators.trajectory_evaluator import TrajectoryEvaluator
 from .evaluators.output_evaluator import OutputEvaluator
+from .evaluators.interactions_evaluator import InteractionsEvaluator
 
 import json
 import os
@@ -41,7 +42,7 @@ class Dataset(BaseModel, Generic[InputT, OutputT]):
                         expected_trajectory=["calculator],
                         metadata={"category": "math"})
             ],
-            evaluator=Evaluator()
+            evaluator=OutputEvaluator(rubric = "The output is relevant and complete. 0 if the output is incorrect or irrelevant.")
         )
     """
     cases: list[Case[InputT, OutputT]]
@@ -62,11 +63,13 @@ class Dataset(BaseModel, Generic[InputT, OutputT]):
                                             input = case.input,
                                             expected_output=case.expected_output,
                                             expected_trajectory=case.expected_trajectory,
+                                            expected_interactions=case.expected_interactions,
                                             metadata=case.metadata)
         task_output = task(case.input)
         if isinstance(task_output, dict): # could be evaluating the trajectory as well
             evaluation_context.actual_output = task_output.get("output")
             evaluation_context.actual_trajectory = task_output.get("trajectory")
+            evaluation_context.actual_interactions = task_output.get("interactions")
         else: # evaluating only the output
             evaluation_context.actual_output = task_output
         return evaluation_context
@@ -85,10 +88,11 @@ class Dataset(BaseModel, Generic[InputT, OutputT]):
         """
         # Create evaluation context
         evaluation_context = EvaluationData(name=case.name,
-                                          input=case.input,
-                                          expected_output=case.expected_output,
-                                          expected_trajectory=case.expected_trajectory,
-                                          metadata=case.metadata)
+                                        input=case.input,
+                                        expected_output=case.expected_output,
+                                        expected_trajectory=case.expected_trajectory,
+                                        expected_interactions=case.expected_interactions,
+                                        metadata=case.metadata)
         
         # Handle both async and sync tasks
         if asyncio.iscoroutinefunction(task):
@@ -100,6 +104,7 @@ class Dataset(BaseModel, Generic[InputT, OutputT]):
         if isinstance(task_output, dict):
             evaluation_context.actual_output = task_output.get("output")
             evaluation_context.actual_trajectory = task_output.get("trajectory")
+            evaluation_context.actual_interactions = task_output.get("interactions")
         else:
             evaluation_context.actual_output = task_output
             
@@ -268,7 +273,8 @@ class Dataset(BaseModel, Generic[InputT, OutputT]):
         cases = [Case.model_validate(case_data) for case_data in data["cases"]]
         default_evaluators = {"Evaluator": Evaluator,
                             "OutputEvaluator": OutputEvaluator,
-                            "TrajectoryEvaluator": TrajectoryEvaluator}
+                            "TrajectoryEvaluator": TrajectoryEvaluator,
+                            "InteractionsEvaluator": InteractionsEvaluator}
         all_evaluators = {**default_evaluators, **{v.get_type_name(): v for v in custom_evaluators}}
 
         evaluator_type = data["evaluator"]["evaluator_type"]

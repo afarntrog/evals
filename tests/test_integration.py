@@ -6,6 +6,7 @@ from src.strands_evaluation.case import Case
 from src.strands_evaluation.evaluators.evaluator import Evaluator
 from src.strands_evaluation.evaluators.output_evaluator import OutputEvaluator
 from src.strands_evaluation.evaluators.trajectory_evaluator import TrajectoryEvaluator
+from src.strands_evaluation.evaluators.interactions_evaluator import InteractionsEvaluator
 from src.strands_evaluation.types.evaluation import EvaluationOutput, EvaluationData
 
 
@@ -30,6 +31,20 @@ def cases():
         Case(name="no_match", input="foo", expected_output="bar"),
         Case(name="partial", input="test", expected_output="test_result")
     ]
+
+@pytest.fixture
+def interaction_case():
+    return [
+        Case(
+            name="interaction_test",
+            input="hello",
+            expected_output="world",
+            expected_interactions=[
+                {"node_name": "agent1", "dependencies": [], "messages": "processing hello"},
+                {"node_name": "agent2", "dependencies": ["agent1"], "messages": "final result"}
+            ]
+        )
+        ]
 
 mock_score = 0.8
 @pytest.fixture
@@ -252,3 +267,49 @@ class TestIntegration:
         assert len(report.scores) == 10
         assert all(score == 1.0 for score in report.scores)
         assert report.overall_score == 1.0
+    
+    @patch('src.strands_evaluation.evaluators.interactions_evaluator.Agent')
+    def test_dataset_with_interactions_evaluator(self, mock_agent_class, interaction_case, mock_agent):
+        """Test Dataset with InteractionsEvaluator integration"""
+        mock_agent_class.return_value = mock_agent
+        interactions_evaluator = InteractionsEvaluator(rubric="Test if interactions match expected sequence")
+        dataset = Dataset(cases=interaction_case, evaluator=interactions_evaluator)
+        
+        def task_with_interactions(input_val):
+            return {
+                "output": "world",
+                "interactions": [
+                    {"node_name": "agent1", "dependencies": [], "messages": "processing hello"},
+                    {"node_name": "agent2", "dependencies": ["agent1"], "messages": "final result"}
+                ]
+            }
+        
+        report = dataset.run_evaluations(task_with_interactions)
+        
+        # Verify the evaluator was called (once per interaction, so 2 times)
+        assert mock_agent.structured_output.call_count == 2
+        assert len(report.scores) == 1
+        assert abs(report.scores[0] - mock_score) <= .00001
+        assert abs(report.overall_score - mock_score) <= .00001
+    
+    @pytest.mark.asyncio
+    async def test_async_dataset_with_interactions(self, interaction_case):
+        """Test async Dataset with interactions data"""
+        dataset = Dataset(cases=interaction_case, evaluator=SimpleEvaluator())
+        
+        async def async_interactions_task(input_val):
+            await asyncio.sleep(0.01)
+            return {
+                "output": "world",
+                "interactions": [
+                    {"node_name": "agent1", "dependencies": [], "message": "processing hello"},
+                    {"node_name": "agent2", "dependencies": ["agent1"], "message": "final result"}
+                ]
+            }
+        
+        report = await dataset.run_evaluations_async(async_interactions_task)
+        
+        assert len(report.scores) == 1
+        assert len(report.cases) == 1
+        assert report.cases[0].get("actual_interactions") is not None
+        assert len(report.cases[0].get("actual_interactions")) == 2

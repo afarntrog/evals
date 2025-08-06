@@ -35,10 +35,10 @@ def output_judge_example():
    test_case4 = Case(input="Who was the first president of the United States?")
 
    ### Step 2: Create evaluator ###   
-   LLM_judge = OutputEvaluator(rubric="The output should represent a reasonable answer to the input.",
+   LLM_judge = OutputEvaluator(rubric="The output should represent a reasonable answer to the input. 1 if the output is concise and correct. 0 if the output is wrong and full of unnecessary text.",
                            include_inputs = True)
    ## or 
-   LLM_judge_w_prompt = OutputEvaluator(rubric="The output should represent a reasonable answer to the input.",
+   LLM_judge_w_prompt = OutputEvaluator(rubric="The output should represent a reasonable answer to the input. 1 if the output is concise and correct. 0 if the output is wrong and full of unnecessary text.",
                                  system_prompt = "You are an expert AI evaluator. Your job is to assess the quality of the response based according to a user-specified rubric. You respond with a JSON object with this structure: {reason: string, pass: boolean, score: number}",
                                  include_inputs = True)
 
@@ -87,10 +87,10 @@ async def async_output_judge_example():
    test_case4 = Case(input="Who was the first president of the United States?")
 
    ### Step 2: Create evaluator ###   
-   LLM_judge = OutputEvaluator(rubric="The output should represent a reasonable answer to the input.",
+   LLM_judge = OutputEvaluator(rubric="The output should represent a reasonable answer to the input. 1 if the output is concise and correct. 0 if the output is wrong and full of unnecessary text.",
                            include_inputs = True)
    ## or 
-   LLM_judge_w_prompt = OutputEvaluator(rubric="The output should represent a reasonable answer to the input.",
+   LLM_judge_w_prompt = OutputEvaluator(rubric="The output should represent a reasonable answer to the input. 1 if the output is concise and correct. 0 if the output is wrong and full of unnecessary text.",
                                  system_prompt = "You are an expert AI evaluator. Your job is to assess the quality of the response based according to a user-specified rubric. You respond with a JSON object with this structure: {reason: string, pass: boolean, score: number}",
                                  include_inputs = True)
 
@@ -103,7 +103,7 @@ async def async_output_judge_example():
    ### Step 4: Define task ###                                      
    # simple example here but could be more complex depending on the user's needs
    async def get_response(query: str) -> str:
-      agent = Agent(callback_handler=None)
+      agent = Agent(system_prompt="Be as concise as possible", callback_handler=None)
       response = await agent.invoke_async(query)
       return str(response)
 
@@ -113,12 +113,12 @@ async def async_output_judge_example():
 
 if __name__ == "__main__":
    # run the file as a module: eg. python -m examples.judge_output 
-   start_time = datetime.datetime.now()
-   report = output_judge_example()
-   end_time = datetime.datetime.now()
-   print("Sync: ", end_time - start_time) # Sync:  0:00:29.743616
-   report.display()
-   report.to_file("judge_output_report", "json")
+   # start_time = datetime.datetime.now()
+   # report = output_judge_example()
+   # end_time = datetime.datetime.now()
+   # print("Sync: ", end_time - start_time) # Sync:  0:00:29.743616
+   # report.display()
+   # report.to_file("judge_output_report", "json")
 
    start_time = datetime.datetime.now()
    report = asyncio.run(async_output_judge_example())
@@ -126,4 +126,4 @@ if __name__ == "__main__":
    print("Async: ", end_time - start_time)  # Async:  0:00:10.716829
    # report.display()
    report.to_file("async_judge_output_report", "json")
-   report.run_display()
+   report.run_display(include_actual_output=True)

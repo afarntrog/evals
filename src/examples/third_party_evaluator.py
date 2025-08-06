@@ -12,6 +12,8 @@ from langchain.evaluation.criteria import CriteriaEvalChain
 import asyncio
 import datetime
 
+## Need to install $pip install langchain langchain_aws ##
+
 def third_party_example():
     """
     Demonstrates integrating a third-party evaluator (LangChain) with the evaluation framework.
@@ -135,7 +137,8 @@ async def async_third_party_example():
 
             criteria = {
                 "correctness": "Is the actual answer correct?",
-                "relevance": "Is the response relevant?"
+                "relevance": "Is the response relevant?",
+                "conciseness": "Is the response short and to the point?"
             }
             
             evaluator = CriteriaEvalChain.from_llm(
@@ -164,7 +167,7 @@ async def async_third_party_example():
 
     ### Step 4: Define task ###  
     async def get_response(query: str) -> str:
-        agent = Agent(callback_handler=None)
+        agent = Agent(system_prompt="Be as concise as possible", callback_handler=None)
         response = await agent.invoke_async(query)
         return str(response)
 
@@ -174,20 +177,19 @@ async def async_third_party_example():
 
 if __name__ == "__main__":
     # run the file as a module: eg. python -m examples.third_party_evaluator 
-    start = datetime.datetime.now()
-    report = third_party_example()
-    end = datetime.datetime.now()
-    print("Sync: ", end - start) # Sync:  0:00:33.125273
-    report.display(include_input=False)
-    report.to_file("third_party_trajectory_report", "json")
+    # start = datetime.datetime.now()
+    # report = third_party_example()
+    # end = datetime.datetime.now()
+    # print("Sync: ", end - start) # Sync:  0:00:33.125273
+    # report.display()
+    # report.to_file("third_party_report", "json")
 
     start = datetime.datetime.now()
     report = asyncio.run(async_third_party_example())
     end = datetime.datetime.now()
     print("Async: ", end - start) # Async:  0:00:24.050895
-    report.display(include_input=False)
-    report.to_file("async_third_party_trajectory_report", "json")
-    report.run_display()
+    report.to_file("async_third_party_report", "json")
+    report.run_display(include_actual_output=True)
 
 
     

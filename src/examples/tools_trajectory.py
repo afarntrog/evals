@@ -1,5 +1,5 @@
 from strands import Agent
-from strands_tools import calculator
+from strands_tools import calculator, editor, python_repl
 
 from strands_evaluation.dataset import Dataset 
 from strands_evaluation.case import Case
@@ -99,7 +99,7 @@ async def async_tools_trajectory_example():
 
     ### Step 4: Define task ###  
     async def get_response(query: str) -> dict:
-        agent = Agent(tools = [calculator], callback_handler=None)
+        agent = Agent(tools = [calculator, editor, python_repl], callback_handler=None)
         response = await agent.invoke_async(query)
        
         return {"output": str(response),
@@ -111,12 +111,12 @@ async def async_tools_trajectory_example():
 
 if __name__ == "__main__":
     # run the file as a module: eg. python -m examples.tools_trajectory 
-    start = datetime.datetime.now()
-    report = tools_trajectory_example()
-    end = datetime.datetime.now()
-    print("Sync: ", end - start) # Sync:  0:00:29.218897
-    report.display()
-    report.to_file("tools_trajectory_report", "json")
+    # start = datetime.datetime.now()
+    # report = tools_trajectory_example()
+    # end = datetime.datetime.now()
+    # print("Sync: ", end - start) # Sync:  0:00:29.218897
+    # report.display()
+    # report.to_file("tools_trajectory_report", "json")
 
     start = datetime.datetime.now()
     report = asyncio.run(async_tools_trajectory_example())

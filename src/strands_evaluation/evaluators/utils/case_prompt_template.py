@@ -4,7 +4,7 @@ from typing_extensions import TypeVar
 InputT = TypeVar("InputT")
 OutputT = TypeVar("OutputT")
 
-def compose_test_prompt(evaluation_case: EvaluationData[InputT, OutputT], rubric: str, include_inputs: bool, uses_trajectory: bool = False) -> str:
+def compose_test_prompt(evaluation_case: EvaluationData[InputT, OutputT], rubric: str, include_inputs: bool, uses_trajectory: bool = False, trajectory_description: dict = None) -> str:
     """
     Compose the prompt for a test case evaluation.
 
@@ -13,6 +13,7 @@ def compose_test_prompt(evaluation_case: EvaluationData[InputT, OutputT], rubric
         rubric: The evaluation criteria to be applied
         include_inputs: Whether to include the input in the prompt
         uses_trajectory: Whether this is a trajectory-based evaluation
+        trajectory_description: A dictionary describing the type of trajectory expected for this evaluation. 
 
     Returns:
         str: The formatted evaluation prompt
@@ -43,6 +44,9 @@ def compose_test_prompt(evaluation_case: EvaluationData[InputT, OutputT], rubric
 
         if evaluation_case.expected_trajectory:
             evaluation_prompt += f"<ExpectedTrajectory>{evaluation_case.expected_trajectory}</ExpectedTrajectory>\n"
+
+        if trajectory_description:
+            evaluation_prompt += f"<TrajectoryDescription>{trajectory_description}</TrajectoryDescription>\n"
 
     evaluation_prompt += f"<Rubric>{rubric}</Rubric>"
 

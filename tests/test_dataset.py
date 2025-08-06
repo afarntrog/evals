@@ -52,6 +52,8 @@ class TestDataset:
         assert result.expected_trajectory is None
         assert result.actual_trajectory is None
         assert result.metadata == {}
+        assert result.actual_interactions is None
+        assert result.expected_interactions is None
     
     def test_run_task_dict_output(self, mock_evaluator):
         """Test _run_task with dictionary output containing trajectory"""
@@ -68,6 +70,28 @@ class TestDataset:
         
         assert result.actual_output == "response to hello"
         assert result.actual_trajectory == ["step1", "step2"]
+    
+    def test_run_task_dict_output_with_interactions(self, mock_evaluator):
+        """Test _run_task with dictionary output containing interactions"""
+        interactions = [{"node_name": "agent1", "dependencies": [], "message": "hello"}]
+        case = Case(name="test", input="hello", expected_output="world", expected_interactions=interactions)
+        dataset = Dataset(cases=[case], evaluator=mock_evaluator)
+        
+        def dict_task(input_val):
+            return {
+                "output": f"response to {input_val}",
+                "trajectory": ["step1", "step2"],
+                "interactions": interactions
+            }
+        
+        result = dataset._run_task(dict_task, case)
+        
+        assert result.actual_output == "response to hello"
+        assert result.actual_trajectory == ["step1", "step2"]
+        assert result.actual_interactions == [{"node_name": "agent1", "dependencies": [], "message": "hello"}]
+        assert result.expected_output == "world"
+        assert result.expected_trajectory is None
+        assert result.expected_interactions == interactions
     
     def test_run_evaluations(self, mock_evaluator):
         """Test complete evaluation run"""
@@ -107,15 +131,14 @@ class TestDataset:
     def test_to_dict_empty(self, mock_evaluator):
         """Test converting empty dataset to dictionary"""
         dataset = Dataset(cases=[], evaluator=mock_evaluator)
-        assert dataset.to_dict() == {"cases": [], "evaluator": {"evaluator_type": "MockEvaluator"}
-                                     }
+        assert dataset.to_dict() == {"cases": [], "evaluator": {"evaluator_type": "MockEvaluator"}}
 
     def test_to_dict_non_empty(self, mock_evaluator):
         """Test converting non-empty dataset to dictionary"""
         cases = [Case(name="test", input="hello", expected_output="world")]
         dataset = Dataset(cases=cases, evaluator=mock_evaluator)
         assert dataset.to_dict() == {
-            "cases": [{"name": "test", "input": "hello", "expected_output": "world", "expected_trajectory": None, "metadata": {}}],
+            "cases": [{"name": "test", "input": "hello", "expected_output": "world", "expected_trajectory": None, "expected_interactions": None, "metadata": {}}],
             "evaluator": {"evaluator_type": "MockEvaluator"}
             }
     
@@ -126,7 +149,8 @@ class TestDataset:
         evaluator = OutputEvaluator(rubric="rubric", model="model", include_inputs=False, system_prompt="system prompt")
         dataset = Dataset(cases=cases, evaluator=evaluator)
         assert dataset.to_dict() == {
-            "cases": [{"name": "test", "input": "hello", "expected_output": "world", "expected_trajectory": None, "metadata": {}}],
+            "cases": [{"name": "test", "input": "hello", "expected_output": "world",
+                    "expected_trajectory": None, "expected_interactions": None, "metadata": {}}],
             "evaluator": {"evaluator_type": "OutputEvaluator",
                         "rubric": "rubric",
                         "model": "model",
@@ -142,10 +166,10 @@ class TestDataset:
         evaluator = OutputEvaluator(rubric="rubric")
         dataset = Dataset(cases=cases, evaluator=evaluator)
         assert dataset.to_dict() == {
-            "cases": [{"name": "test", "input": "hello", "expected_output": "world", "expected_trajectory": None, "metadata": {}}],
+            "cases": [{"name": "test", "input": "hello", "expected_output": "world",
+                    "expected_trajectory": None, "expected_interactions": None, "metadata": {}}],
             "evaluator": {"evaluator_type": "OutputEvaluator",
-                        "rubric": "rubric",
-                        }
+                        "rubric": "rubric"}
             }
     
     def test_to_dict_Trajectory_evaluator_default(self):
@@ -156,10 +180,9 @@ class TestDataset:
         evaluator = TrajectoryEvaluator(rubric="rubric")
         dataset = Dataset(cases=cases, evaluator=evaluator)
         assert dataset.to_dict() == {
-            "cases": [{"name": "test", "input": "hello", "expected_output": "world", "expected_trajectory": ["step1", "step2"], "metadata": {}}],
+            "cases": [{"name": "test", "input": "hello", "expected_output": "world", "expected_trajectory": ["step1", "step2"], "expected_interactions": None, "metadata": {}}],
             "evaluator": {"evaluator_type": "TrajectoryEvaluator",
-                        "rubric": "rubric",
-                        }
+                        "rubric": "rubric"}
             }
     
     def test_to_dict_Trajectory_evaluator_full(self):
@@ -169,8 +192,37 @@ class TestDataset:
         evaluator = TrajectoryEvaluator(rubric="rubric", model="model", include_inputs=False, system_prompt="system prompt")
         dataset = Dataset(cases=cases, evaluator=evaluator)
         assert dataset.to_dict() == {
-            "cases": [{"name": "test", "input": "hello", "expected_output": "world", "expected_trajectory": ["step1", "step2"], "metadata": {}}],
+            "cases": [{"name": "test", "input": "hello", "expected_output": "world", "expected_trajectory": ["step1", "step2"], "expected_interactions": None, "metadata": {}}],
             "evaluator": {"evaluator_type": "TrajectoryEvaluator",
+                        "rubric": "rubric",
+                        "model": "model",
+                        "include_inputs": False,
+                        "system_prompt": "system prompt"}
+            }
+    
+    def test_to_dict_Interactions_evaluator_default(self):
+        """Test converting dataset with Interactions evaluator to dictionary with defaults."""
+        from src.strands_evaluation.evaluators.interactions_evaluator import InteractionsEvaluator
+        interactions = [{"node_name": "agent1", "dependencies": [], "message": "hello"}]
+        cases = [Case(name="test", input="hello", expected_output="world", expected_interactions=interactions)]
+        evaluator = InteractionsEvaluator(rubric="rubric")
+        dataset = Dataset(cases=cases, evaluator=evaluator)
+        assert dataset.to_dict() == {
+            "cases": [{"name": "test", "input": "hello", "expected_output": "world", "expected_trajectory": None, "expected_interactions": interactions, "metadata": {}}],
+            "evaluator": {"evaluator_type": "InteractionsEvaluator",
+                        "rubric": "rubric"}
+            }
+    
+    def test_to_dict_Interactions_evaluator_full(self):
+        """Test converting dataset with Interactions evaluator to dictionary with no defaults."""
+        from src.strands_evaluation.evaluators.interactions_evaluator import InteractionsEvaluator
+        interactions = [{"node_name": "agent1", "dependencies": [], "message": "hello"}]
+        cases = [Case(name="test", input="hello", expected_output="world", expected_interactions=interactions)]
+        evaluator = InteractionsEvaluator(rubric="rubric", model="model", include_inputs=False, system_prompt="system prompt")
+        dataset = Dataset(cases=cases, evaluator=evaluator)
+        assert dataset.to_dict() == {
+            "cases": [{"name": "test", "input": "hello", "expected_output": "world", "expected_trajectory": None, "expected_interactions": interactions, "metadata": {}}],
+            "evaluator": {"evaluator_type": "InteractionsEvaluator",
                         "rubric": "rubric",
                         "model": "model",
                         "include_inputs": False,
@@ -183,7 +235,7 @@ class TestDataset:
         evaluator = MockEvaluator()
         dataset = Dataset(cases=[case], evaluator=evaluator)
         assert dataset.to_dict() == {
-            "cases": [{"name": "test", "input": {"field1": "hello"}, "expected_output": {"field2": "world"}, "expected_trajectory": None, "metadata": {}}],
+            "cases": [{"name": "test", "input": {"field1": "hello"}, "expected_output": {"field2": "world"}, "expected_trajectory": None, "expected_interactions": None, "metadata": {}}],
             "evaluator": {"evaluator_type": "MockEvaluator"}
             }
     
@@ -195,7 +247,7 @@ class TestDataset:
         evaluator = MockEvaluator()
         dataset = Dataset(cases=[case], evaluator=evaluator)
         assert dataset.to_dict() == {
-            "cases": [{"name": "test", "input": simple_echo, "expected_output": None, "expected_trajectory": None, "metadata": {}}],
+            "cases": [{"name": "test", "input": simple_echo, "expected_output": None, "expected_trajectory": None, "expected_interactions": None, "metadata": {}}],
             "evaluator": {"evaluator_type": "MockEvaluator"}
             }
 
@@ -286,6 +338,48 @@ class TestDataset:
         assert dataset.evaluator.model is None
         assert dataset.evaluator.include_inputs == True
     
+    def test_from_dict_interactions_evaluator(self):
+        """Test creating a Dataset with an Interactions evaluator"""
+        from src.strands_evaluation.evaluators.interactions_evaluator import InteractionsEvaluator
+        interactions = [{"node_name": "agent1", "dependencies": [], "message": "hello"}]
+        cases = [Case(name="test", input="hello", expected_output="world", expected_interactions=interactions)]
+        dict_dataset = {
+            "cases": cases,
+            "evaluator": {
+                "evaluator_type": "InteractionsEvaluator",
+                "rubric": "rubric",
+                "model": "model",
+                "include_inputs": False,
+                "system_prompt": "system prompt"
+            }
+        }
+        dataset = Dataset.from_dict(dict_dataset)
+        assert dataset.cases == cases
+        assert isinstance(dataset.evaluator, InteractionsEvaluator)
+        assert dataset.evaluator.rubric == "rubric"
+        assert dataset.evaluator.model == "model"
+        assert dataset.evaluator.include_inputs == False
+        assert dataset.evaluator.system_prompt == "system prompt"
+    
+    def test_from_dict_interactions_evaluator_defaults(self):
+        """Test creating a Dataset with an Interactions evaluator with defaults"""
+        from src.strands_evaluation.evaluators.interactions_evaluator import InteractionsEvaluator
+        interactions = [{"node_name": "agent1", "dependencies": [], "message": "hello"}]
+        cases = [Case(name="test", input="hello", expected_output="world", expected_interactions=interactions)]
+        dict_dataset = {
+            "cases": cases,
+            "evaluator": {
+                "evaluator_type": "InteractionsEvaluator",
+                "rubric": "rubric"
+            }
+        }
+        dataset = Dataset.from_dict(dict_dataset)
+        assert dataset.cases == cases
+        assert isinstance(dataset.evaluator, InteractionsEvaluator)
+        assert dataset.evaluator.rubric == "rubric"
+        assert dataset.evaluator.model is None
+        assert dataset.evaluator.include_inputs == True
+    
     @pytest.mark.asyncio
     async def test_run_task_async_with_sync_task(self):
         """Test _run_task_async with a synchronous task function"""
@@ -363,3 +457,21 @@ class TestDataset:
         assert report.scores[0] == 0.0  # case1 fails
         assert report.scores[1] == 1.0  # case2 passes
         assert "Test error" in report.reasons[0]
+    
+    def test_run_evaluations_with_interactions(self):
+        """Test evaluation run with interactions data"""
+        interactions = [{"node_name": "agent1", "dependencies": [], "message": "test message"}]
+        case = Case(name="test", input="hello", expected_output="world", expected_interactions=interactions)
+        dataset = Dataset(cases=[case], evaluator=MockEvaluator())
+        
+        def task_with_interactions(input_val):
+            return {
+                "output": input_val,
+                "interactions": interactions
+            }
+        
+        report = dataset.run_evaluations(task_with_interactions)
+        
+        assert len(report.cases) == 1
+        assert report.cases[0]["actual_interactions"] == interactions
+        assert report.cases[0]["expected_interactions"] == interactions
