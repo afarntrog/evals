@@ -1,17 +1,18 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
 
 [project]
 name = "strands-evaluation"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Evaluation framework for Strands"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 authors = [
-    {name = "Strands Team"}
+    {name = "AWS", email = "opensource@amazon.com"},
 ]
+
 dependencies = [
     "pydantic>=2.0.0,<3.0.0",
     "rich>=14.0.0,<15.0.0",
@@ -23,20 +24,83 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest>=7.0",
-    "pytest-asyncio>=0.21.0",
+    "pytest-asyncio>=0.26.0",
     "pytest-cov>=4.0",
-    "rouge-score>=0.1.2"
-]
-dev = [
-    "black>=23.0",
-    "mypy>=1.0"
 ]
 
+dev = [
+    "hatch>=1.0.0,<2.0.0",
+    "mypy>=1.0",
+    "pre-commit>=3.2.0,<4.2.0",
+    "ruff>=0.4.4,<1.0.0",
+]
+
+[tool.ruff]
+line-length = 120
+include = ["src/**/*.py", "tests/**/*.py"]
+
+[tool.hatch.envs.default.scripts]
+list = [
+    "echo 'Scripts commands available for default env:'; hatch env show --json | jq --raw-output '.default.scripts | keys[]'"
+]
+format = [
+  "hatch fmt --formatter",
+]
+test-format = [
+    "hatch fmt --formatter --check",
+]
+lint = [
+    "hatch fmt --linter"
+]
+test-lint = [
+    "hatch fmt --linter --check"
+]
+prepare = [
+    "hatch fmt --linter",
+    "hatch fmt --formatter",
+    "hatch run test-lint",
+    "hatch test --all"
+]
+
+
+[tool.hatch.envs.hatch-static-analysis.scripts]
+format-check = [
+    "ruff format --check"
+]
+format-fix = [
+    "ruff format"
+]
+lint-check = [
+    "ruff check",
+    "mypy -p src"
+]
+lint-fix = [
+    "ruff check --fix"
+]
+
+[tool.ruff.lint]
+select = [
+  "E", # pycodestyle
+  "F", # pyflakes
+  "I", # isort
+  "B", # flake8-bugbear
+]
+
+[tool.hatch.version]
+path = "src/strands_evaluation/__init__.py"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = "test_*.py"
-
-[tool.black]
-line-length = 88
-target-version = ["py39"]
+[tool.hatch.envs.default]
+dependencies = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.26.0",
+    "pytest-cov>=4.0",
+]
+extra-dependencies = [
+    "hatch>=1.0.0,<2.0.0",
+    "mypy>=1.0",
+    "pre-commit>=3.2.0,<4.2.0",
+    "ruff>=0.4.4,<1.0.0",
+]

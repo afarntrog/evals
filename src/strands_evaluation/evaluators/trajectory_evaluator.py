@@ -1,14 +1,15 @@
+from strands import Agent
 from typing_extensions import TypeVar
 
-from .evaluator import Evaluator
 from ..types.evaluation import EvaluationData, EvaluationOutput
-from .utils.prompt_templates import judge_trajectory_template_tools as SYSTEM_PROMPT
-from strands import Agent
-from .utils.evaluation_tools import exact_match_scorer, in_order_match_scorer, any_order_match_scorer
+from .evaluator import Evaluator
 from .utils.case_prompt_template import compose_test_prompt
+from .utils.evaluation_tools import any_order_match_scorer, exact_match_scorer, in_order_match_scorer
+from .utils.prompt_templates import judge_trajectory_template_tools as SYSTEM_PROMPT
 
 InputT = TypeVar("InputT")
 OutputT = TypeVar("OutputT")
+
 
 class TrajectoryEvaluator(Evaluator[InputT, OutputT]):
     """
@@ -23,8 +24,15 @@ class TrajectoryEvaluator(Evaluator[InputT, OutputT]):
                     If None, the evaluator will use one of the default template.
         include_inputs: Whether to include inputs to the task in the evaluation or not.
     """
-    def __init__(self, rubric: str, trajectory_description: dict | None = None, model: str | None = None, system_prompt: str = SYSTEM_PROMPT,
-                include_inputs: bool = True):
+
+    def __init__(
+        self,
+        rubric: str,
+        trajectory_description: dict | None = None,
+        model: str | None = None,
+        system_prompt: str = SYSTEM_PROMPT,
+        include_inputs: bool = True,
+    ):
         super().__init__()
         self.rubric = rubric
         self.trajectory_description = trajectory_description
@@ -48,35 +56,44 @@ class TrajectoryEvaluator(Evaluator[InputT, OutputT]):
 
         Args:
             evaluation_case: The test case with all of the neccessary context to be evaluated.
-        
+
         Returns:
             The results of the evaluation as EvaluationOutput.
         """
-        evaluator_agent = Agent(model=self.model,
-                                system_prompt=self.system_prompt,
-                                tools = self._tools,
-                                callback_handler=None)
-        evaluation_prompt = compose_test_prompt(evaluation_case=evaluation_case, rubric=self.rubric, include_inputs=self.include_inputs, uses_trajectory=True)
+        evaluator_agent = Agent(
+            model=self.model, system_prompt=self.system_prompt, tools=self._tools, callback_handler=None
+        )
+        evaluation_prompt = compose_test_prompt(
+            evaluation_case=evaluation_case,
+            rubric=self.rubric,
+            include_inputs=self.include_inputs,
+            uses_trajectory=True,
+        )
         result = evaluator_agent.structured_output(EvaluationOutput, evaluation_prompt)
         return result
-    
+
     async def evaluate_async(self, evaluation_case: EvaluationData[InputT, OutputT]) -> EvaluationOutput:
         """
         Evaluate the performance of the task on the given test cases asynchronously.
 
         Args:
             evaluation_case: The test case with all of the neccessary context to be evaluated.
-        
+
         Returns:
             The results of the evaluation as EvaluationOutput.
         """
-        evaluator_agent = Agent(model=self.model,
-                                system_prompt=self.system_prompt,
-                                tools = self._tools,
-                                callback_handler=None)
-        evaluation_prompt = compose_test_prompt(evaluation_case=evaluation_case, rubric=self.rubric, include_inputs=self.include_inputs, uses_trajectory=True)
+        evaluator_agent = Agent(
+            model=self.model, system_prompt=self.system_prompt, tools=self._tools, callback_handler=None
+        )
+        evaluation_prompt = compose_test_prompt(
+            evaluation_case=evaluation_case,
+            rubric=self.rubric,
+            include_inputs=self.include_inputs,
+            uses_trajectory=True,
+        )
         result = await evaluator_agent.structured_output_async(EvaluationOutput, evaluation_prompt)
         return result
-    
+
+
 if __name__ == "__main__":
     pass

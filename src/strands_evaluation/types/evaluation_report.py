@@ -1,11 +1,14 @@
-from pydantic import BaseModel
-from typing_extensions import TypeVar
 import json
 import os
+
+from pydantic import BaseModel
+from typing_extensions import TypeVar
+
 from ..evaluators.utils.display_console import CollapsibleTableReportDisplay
 
 InputT = TypeVar("InputT")
 OutputT = TypeVar("OutputT")
+
 
 class EvaluationReport(BaseModel):
     """
@@ -18,17 +21,25 @@ class EvaluationReport(BaseModel):
         test_passes: A list of booleans indicating whether the test pass or fail.
         reasons: A list of reason for each test case.
     """
+
     overall_score: float
     scores: list[float]
     cases: list[dict]
     test_passes: list[bool]
     reasons: list[str] | None = []
 
-    def _display(self, static: bool = True, include_input: bool = True, include_actual_output: bool = False,
-                include_expected_output: bool = False, include_expected_trajectory: bool = False,
-                include_actual_trajectory: bool = False, 
-                include_actual_interactions: bool = False, include_expected_interactions: bool = False,
-                include_meta: bool = False):
+    def _display(
+        self,
+        static: bool = True,
+        include_input: bool = True,
+        include_actual_output: bool = False,
+        include_expected_output: bool = False,
+        include_expected_trajectory: bool = False,
+        include_actual_trajectory: bool = False,
+        include_actual_interactions: bool = False,
+        include_expected_interactions: bool = False,
+        include_meta: bool = False,
+    ):
         """
         Render an interface of the report with as much details as configured using Rich.
 
@@ -42,21 +53,21 @@ class EvaluationReport(BaseModel):
             include_actual_interactions: Whether to include the actual interactions in the display. Defaults to False.
             include_expected_interactions: Whether to include the expected interactions in the display. Defaults to False.
             include_meta: Whether to include metadata in the display. Defaults to False.
-           
+
         Note:
             This method provides an interactive console interface where users can expand or collapse
             individual test cases to view more or less detail.
         """
         report_data = {}
         for i in range(len(self.scores)):
-            name = self.cases[i].get("name", f"Test {i+1}")
+            name = self.cases[i].get("name", f"Test {i + 1}")
             reason = self.reasons[i] if i < len(self.reasons) else "N/A"
             details_dict = {
-                            "name": name,
-                            "score": f"{self.scores[i]:.2f}",
-                            "test_pass": self.test_passes[i],
-                            "reason": reason,
-                            }
+                "name": name,
+                "score": f"{self.scores[i]:.2f}",
+                "test_pass": self.test_passes[i],
+                "reason": reason,
+            }
             if include_input:
                 details_dict["input"] = str(self.cases[i].get("input"))
             if include_actual_output:
@@ -73,19 +84,23 @@ class EvaluationReport(BaseModel):
                 details_dict["expected_interactions"] = str(self.cases[i].get("expected_interactions"))
             if include_meta:
                 details_dict["metadata"] = str(self.cases[i].get("metadata"))
-            
-            report_data[str(i)] = {
-                "details": details_dict,
-                "expanded": False
-                }
-        
-        display_console = CollapsibleTableReportDisplay(items = report_data, overall_score = self.overall_score)
-        display_console.run(static = static)
 
-    def display(self, include_input: bool = True, include_actual_output: bool = False,
-                include_expected_output: bool = False, include_expected_trajectory: bool = False,
-                include_actual_trajectory: bool = False, include_actual_interactions: bool = False, include_expected_interactions: bool = False,
-                include_meta: bool = False):
+            report_data[str(i)] = {"details": details_dict, "expanded": False}
+
+        display_console = CollapsibleTableReportDisplay(items=report_data, overall_score=self.overall_score)
+        display_console.run(static=static)
+
+    def display(
+        self,
+        include_input: bool = True,
+        include_actual_output: bool = False,
+        include_expected_output: bool = False,
+        include_expected_trajectory: bool = False,
+        include_actual_trajectory: bool = False,
+        include_actual_interactions: bool = False,
+        include_expected_interactions: bool = False,
+        include_meta: bool = False,
+    ):
         """
         Render the report with as much details as configured using Rich. Use run_display if want
         to interact with the table.
@@ -100,17 +115,29 @@ class EvaluationReport(BaseModel):
             include_expected_interactions: Whether to include the expected interactions in the display. Defaults to False.
             include_meta: Whether to include metadata in the display. Defaults to False.
         """
-        self._display(static = True, include_input = include_input, include_actual_output = include_actual_output,
-                    include_expected_output = include_expected_output,
-                    include_expected_trajectory = include_expected_trajectory,
-                    include_actual_trajectory = include_actual_trajectory, 
-                    include_actual_interactions=include_actual_interactions, include_expected_interactions=include_expected_interactions,
-                    include_meta = include_meta)
-    
-    def run_display(self, include_input: bool = True, include_actual_output: bool = False,
-                include_expected_output: bool = False, include_expected_trajectory: bool = False,
-                include_actual_trajectory: bool = False, include_actual_interactions: bool = False, include_expected_interactions: bool = False,
-                include_meta: bool = False):
+        self._display(
+            static=True,
+            include_input=include_input,
+            include_actual_output=include_actual_output,
+            include_expected_output=include_expected_output,
+            include_expected_trajectory=include_expected_trajectory,
+            include_actual_trajectory=include_actual_trajectory,
+            include_actual_interactions=include_actual_interactions,
+            include_expected_interactions=include_expected_interactions,
+            include_meta=include_meta,
+        )
+
+    def run_display(
+        self,
+        include_input: bool = True,
+        include_actual_output: bool = False,
+        include_expected_output: bool = False,
+        include_expected_trajectory: bool = False,
+        include_actual_trajectory: bool = False,
+        include_actual_interactions: bool = False,
+        include_expected_interactions: bool = False,
+        include_meta: bool = False,
+    ):
         """
         Render the report interactively with as much details as configured using Rich.
 
@@ -124,12 +151,17 @@ class EvaluationReport(BaseModel):
             include_expected_interactions: Whether to include the expected interactions in the display. Defaults to False.
             include_meta: Whether to include metadata in the display. Defaults to False.
         """
-        self._display(static = False, include_input = include_input, include_actual_output = include_actual_output,
-                    include_expected_output = include_expected_output,
-                    include_expected_trajectory = include_expected_trajectory,
-                    include_actual_trajectory = include_actual_trajectory,
-                    include_actual_interactions=include_actual_interactions, include_expected_interactions=include_expected_interactions,
-                    include_meta = include_meta)
+        self._display(
+            static=False,
+            include_input=include_input,
+            include_actual_output=include_actual_output,
+            include_expected_output=include_expected_output,
+            include_expected_trajectory=include_expected_trajectory,
+            include_actual_trajectory=include_actual_trajectory,
+            include_actual_interactions=include_actual_interactions,
+            include_expected_interactions=include_expected_interactions,
+            include_meta=include_meta,
+        )
 
     def to_dict(self):
         """
@@ -161,10 +193,10 @@ class EvaluationReport(BaseModel):
 
         if format == "json":
             with open(f"{directory}/{file_name}.json", "w") as f:
-                json.dump(self.to_dict(), f, indent = 2)
+                json.dump(self.to_dict(), f, indent=2)
         else:
             raise ValueError(f"Unsupported format: {format}")
-    
+
     @classmethod
     def from_file(cls, file_path: str, format: str):
         """

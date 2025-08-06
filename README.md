@@ -3,9 +3,6 @@
 ## Setup
 
 ### Installation
-
-The package uses `pyproject.toml` for dependency management. To install:
-
 ```bash
 # Create and activate a virtual environment (recommended)
 python -m venv .venv
@@ -21,13 +18,23 @@ pip install -e ".[test]"
 pip install -e ".[test,dev]"
 ```
 
-### Running Tests
+### Format code
+hatch run format
 
-```bash
-# Run all tests
-cd tests
-pytest .
-```
+### Check formatting (without making changes)
+hatch run test-format
+
+### Lint code
+hatch run lint
+
+### Check linting (without making changes)
+hatch run test-lint
+
+### Run tests
+pytest tests/
+
+### List available commands
+hatch run list
 
 ## Basic Usage
 
@@ -183,3 +190,20 @@ report = asyncio.run(main())
 ## More Examples
 
 See the `examples` directory for more detailed examples.
+
+## Contributing ❤️
+
+We welcome contributions! See our [Contributing Guide](CONTRIBUTING.md) for details on:
+- Reporting bugs & features
+- Development setup
+- Contributing via Pull Requests
+- Code of Conduct
+- Reporting of security issues
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## Security
+
+See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.

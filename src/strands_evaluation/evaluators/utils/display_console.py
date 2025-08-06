@@ -1,23 +1,24 @@
 from rich.console import Console
-from rich.prompt import Prompt
 from rich.panel import Panel
+from rich.prompt import Prompt
 from rich.table import Table
 
 console = Console()
 
+
 class CollapsibleTableReportDisplay:
     """
     Interactive console display for evaluation reports with expandable/collapsible test case details.
-    
+
     This class provides an interactive rich console interface for displaying evaluation results
     with the ability to expand or collapse individual test cases to show or hide details.
-    
+
     Attributes:
         items: Dictionary of test cases with their details and expansion state
         overall_score: The overall evaluation score
         include_input: Whether to display input values in the table
         include_output: Whether to display output values in the table
-    
+
 
     items should follow the following structure:
         {
@@ -25,33 +26,34 @@ class CollapsibleTableReportDisplay:
                 "name": str,
                 "score": float,
                 "test_pass: bool,
-                "reason": str, 
+                "reason": str,
                 ... # will display everything that's given like actual_output etc.
                 }
             },
             "expanded": bool
         }
     """
+
     def __init__(self, items: dict, overall_score: float):
         """
         Initialize the collapsible table display.
-        
+
         Args:
             items: Dictionary of test cases with their details and expansion state
             overall_score: The overall evaluation score
         """
         self.items = items
         self.overall_score = overall_score
-    
+
     def display_items(self):
         """
         Display the evaluation report as a rich table with expandable/collapsible rows.
-        
+
         Renders a table showing test case results with expansion indicators.
         Expanded rows show full details, while collapsed rows show minimal information.
         """
         overall_score_string = f"[bold blue]Overall Score: {self.overall_score:.2f}[/bold blue]"
-        overall_pass_rate = f"[bold blue]Pass Rate: {sum([1 if case["details"]["test_pass"] else 0 for case in self.items.values()])/len(self.items)}[/bold blue]"
+        overall_pass_rate = f"[bold blue]Pass Rate: {sum([1 if case['details']['test_pass'] else 0 for case in self.items.values()]) / len(self.items)}[/bold blue]"
         spacing = "           "
         console.print(Panel(f"{overall_score_string}{spacing}{overall_pass_rate}", title="📊 Evaluation Report"))
 
@@ -65,19 +67,29 @@ class CollapsibleTableReportDisplay:
         headers = ["index"] + list(self.items["0"]["details"].keys())
         for header in headers:
             if header in colors_mapping:
-                table.add_column(header, style = colors_mapping[header])
+                table.add_column(header, style=colors_mapping[header])
             else:
-                table.add_column(header, style = "yellow")
+                table.add_column(header, style="yellow")
 
         for key, item in self.items.items():
             symbol = "▼" if item["expanded"] else "▶"
             case = item["details"]
             pass_status = "✅" if case["test_pass"] else "❌"
             other_fields = list(case.values())[3:]
-            if item["expanded"]: # We always to render at least the index, name, score, test_pass, and reason
-                renderables = [f"{symbol} {key}", case.get("name", f"Test {key}"), case.get('score'), pass_status] + other_fields
+            if item["expanded"]:  # We always to render at least the index, name, score, test_pass, and reason
+                renderables = [
+                    f"{symbol} {key}",
+                    case.get("name", f"Test {key}"),
+                    case.get("score"),
+                    pass_status,
+                ] + other_fields
             else:
-                renderables = [f"{symbol} {key}", case.get("name", f"Test {key}"), case.get('score'), pass_status] + len(other_fields)*["..."]
+                renderables = [
+                    f"{symbol} {key}",
+                    case.get("name", f"Test {key}"),
+                    case.get("score"),
+                    pass_status,
+                ] + len(other_fields) * ["..."]
             table.add_row(*renderables)
         console.print(table)
 
@@ -87,7 +99,7 @@ class CollapsibleTableReportDisplay:
 
         Args:
             static: Whether to display only or allow interaction with the report.
-        
+
         Provides an interactive console interface where users can:
         - Expand/collapse individual test cases by entering their number
         - Expand all test cases with 'o'
@@ -100,20 +112,20 @@ class CollapsibleTableReportDisplay:
 
             if static:
                 return
-            
-            choice = Prompt.ask("\nEnter the test case number to expand/collapse it, o to expand all, and c to collapse all (q to quit).")
 
-            if choice.lower() == 'q':
+            choice = Prompt.ask(
+                "\nEnter the test case number to expand/collapse it, o to expand all, and c to collapse all (q to quit)."
+            )
+
+            if choice.lower() == "q":
                 break
 
-            if choice.lower() == 'o':
+            if choice.lower() == "o":
                 for key in self.items:
                     self.items[key]["expanded"] = True
-            elif choice.lower() == 'c':
+            elif choice.lower() == "c":
                 for key in self.items:
                     self.items[key]["expanded"] = False
             else:
                 if choice in self.items:
                     self.items[choice]["expanded"] = not self.items[choice]["expanded"]
-            
-

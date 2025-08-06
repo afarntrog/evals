@@ -1,13 +1,14 @@
+from strands import Agent
+from strands.agent.conversation_manager import SlidingWindowConversationManager
 from typing_extensions import TypeVar
 
-from .evaluator import Evaluator
 from ..types.evaluation import EvaluationData, EvaluationOutput
-from strands import Agent
+from .evaluator import Evaluator
 from .utils.prompt_templates import judge_interactions_template as SYSTEM_PROMPT
-from strands.agent.conversation_manager import SlidingWindowConversationManager
 
 InputT = TypeVar("InputT")
 OutputT = TypeVar("OutputT")
+
 
 class InteractionsEvaluator(Evaluator[InputT, OutputT]):
     """
@@ -24,15 +25,22 @@ class InteractionsEvaluator(Evaluator[InputT, OutputT]):
                     If None, the evaluator will use one of the default template.
         include_inputs: Whether to include inputs to the task in the evaluation or not.
     """
-    def __init__(self, rubric: str | dict[str, str], interaction_description: dict | None = None, model: str | None = None, system_prompt: str = SYSTEM_PROMPT,
-                include_inputs: bool = True):
+
+    def __init__(
+        self,
+        rubric: str | dict[str, str],
+        interaction_description: dict | None = None,
+        model: str | None = None,
+        system_prompt: str = SYSTEM_PROMPT,
+        include_inputs: bool = True,
+    ):
         super().__init__()
         self.rubric = rubric
         self.interaction_description = interaction_description
         self.model = model
         self.include_inputs = include_inputs
         self.system_prompt = system_prompt
-    
+
     def update_interaction_description(self, new_description: dict) -> None:
         """
         Update the description of the available interactions.
@@ -41,7 +49,7 @@ class InteractionsEvaluator(Evaluator[InputT, OutputT]):
             new_description: The new description of the available interactions.
         """
         self.interaction_description = new_description
-    
+
     def _get_node_rubric(self, node_name: str) -> str:
         """
         Get the rubric for the node involved in the interaction.
@@ -51,19 +59,21 @@ class InteractionsEvaluator(Evaluator[InputT, OutputT]):
 
         Returns:
             The rubric for the given evaluation case.
-        
+
         Error:
             If the rubric is a dictionary, then expect it to contain the keys for every node.
         """
-        if isinstance(self.rubric, dict): # rubric for each node
+        if isinstance(self.rubric, dict):  # rubric for each node
             rubric = self.rubric.get(node_name, None)
             if rubric is None:
                 raise Exception(f"Please make sure the rubric dictionary contains the key '{node_name}'.")
             return rubric
-        
-        return self.rubric # use the same rubric for all of the nodes
 
-    def _compose_prompt(self, evaluation_case: EvaluationData[InputT, OutputT], current_case_i: int, is_last: bool) -> str:
+        return self.rubric  # use the same rubric for all of the nodes
+
+    def _compose_prompt(
+        self, evaluation_case: EvaluationData[InputT, OutputT], current_case_i: int, is_last: bool
+    ) -> str:
         """
         Compose the prompt for the given evaluation case.
 
@@ -80,22 +90,30 @@ class InteractionsEvaluator(Evaluator[InputT, OutputT]):
         dependencies = interaction.get("dependencies", None)
         messages = interaction.get("messages", None)
         if node_name is None or dependencies is None or messages is None:
-            raise Exception("Please make sure the task function returns a dictionary with the key 'interactions' that contains 'node_name', 'dependencies', and 'messages'.")
-        
+            raise Exception(
+                "Please make sure the task function returns a dictionary with the key 'interactions' that contains 'node_name', 'dependencies', and 'messages'."
+            )
+
         # Create Prompt
         if is_last:
             evaluation_prompt = "Evaluate this final interaction. THE FINAL SCORE MUST BE A DECIMAL BETWEEN 0.0 AND 1.0 (NOT 0 to 10 OR 0 to 100). Your reasoning should include information from all of the previous interactions evaluated.\n"
         else:
             evaluation_prompt = "Evaluate this interaction. THE SCORE MUST BE A DECIMAL BETWEEN 0.0 AND 1.0 (NOT 0 to 10 OR 0 to 100). \n"
 
-        evaluation_prompt += f"<Interaction> Node Name: {node_name}, Depends on {dependencies} \n Message: {messages} </Interaction>\n"
+        evaluation_prompt += (
+            f"<Interaction> Node Name: {node_name}, Depends on {dependencies} \n Message: {messages} </Interaction>\n"
+        )
 
         if evaluation_case.expected_interactions:
             expected_interactions_count = len(evaluation_case.expected_interactions)
-            expected_nodes_sequence = [i.get("node_name") for i in evaluation_case.expected_interactions] # quick overview of the whole sequence
+            expected_nodes_sequence = [
+                i.get("node_name") for i in evaluation_case.expected_interactions
+            ]  # quick overview of the whole sequence
             evaluation_prompt += f"<ExpectedSequence>{expected_nodes_sequence}</ExpectedSequence>\n"
             # include a short window of interactions that may be relevant (at most 3)
-            relevant_expected_interactions = evaluation_case.expected_interactions[max(0, current_case_i-1):min(expected_interactions_count, current_case_i+2)]
+            relevant_expected_interactions = evaluation_case.expected_interactions[
+                max(0, current_case_i - 1) : min(expected_interactions_count, current_case_i + 2)
+            ]
             for relevant_expected_interaction in relevant_expected_interactions:
                 e_node_name = relevant_expected_interaction.get("node_name", None)
                 e_dependencies = relevant_expected_interaction.get("dependencies", None)
@@ -104,20 +122,19 @@ class InteractionsEvaluator(Evaluator[InputT, OutputT]):
 
         if self.include_inputs:
             evaluation_prompt += f"<Input>{evaluation_case.input}</Input>\n"
-        
-        if is_last: # only include the actual output of the whole interaction in the last interaction
+
+        if is_last:  # only include the actual output of the whole interaction in the last interaction
             if evaluation_case.actual_output:
                 evaluation_prompt += f"<Output>{evaluation_case.actual_output}</Output>\n"
             if evaluation_case.expected_output:
                 evaluation_prompt += f"<ExpectedOutput>{evaluation_case.expected_output}</ExpectedOutput>\n"
-        
+
         if self.interaction_description:
             evaluation_prompt += f"<InteractionDescription>{self.interaction_description}</InteractionDescription>\n"
-            
+
         evaluation_prompt += f"<Rubric>{self._get_node_rubric(node_name)}</Rubric>"
 
         return evaluation_prompt
-            
 
     def evaluate(self, evaluation_case: EvaluationData[InputT, OutputT]) -> EvaluationOutput:
         """
@@ -125,7 +142,7 @@ class InteractionsEvaluator(Evaluator[InputT, OutputT]):
 
         Args:
             evaluation_case: The test case with all of the neccessary context to be evaluated.
-        
+
         Returns:
             The results of the evaluation as EvaluationOutput.
         """
@@ -135,14 +152,16 @@ class InteractionsEvaluator(Evaluator[InputT, OutputT]):
 
         # keep all of the context
         conversation_manager = SlidingWindowConversationManager(window_size=num_interactions)
-        evaluator_agent = Agent(model=self.model,
-                                system_prompt=self.system_prompt,
-                                callback_handler=None,
-                                conversation_manager = conversation_manager)
-            
+        evaluator_agent = Agent(
+            model=self.model,
+            system_prompt=self.system_prompt,
+            callback_handler=None,
+            conversation_manager=conversation_manager,
+        )
+
         is_last = False
         result = None
-        for i in range(num_interactions): # evaluate one interaction at a time
+        for i in range(num_interactions):  # evaluate one interaction at a time
             if i == num_interactions - 1:
                 is_last = True
             evaluation_prompt = self._compose_prompt(evaluation_case, i, is_last)
@@ -158,7 +177,7 @@ class InteractionsEvaluator(Evaluator[InputT, OutputT]):
 
         Args:
             evaluation_case: The test case with all of the neccessary context to be evaluated.
-        
+
         Returns:
             The results of the evaluation as EvaluationOutput.
         """
@@ -168,14 +187,16 @@ class InteractionsEvaluator(Evaluator[InputT, OutputT]):
 
         # keep all of the context
         conversation_manager = SlidingWindowConversationManager(window_size=num_interactions)
-        evaluator_agent = Agent(model=self.model,
-                                system_prompt=self.system_prompt,
-                                callback_handler=None,
-                                conversation_manager = conversation_manager)
-            
+        evaluator_agent = Agent(
+            model=self.model,
+            system_prompt=self.system_prompt,
+            callback_handler=None,
+            conversation_manager=conversation_manager,
+        )
+
         is_last = False
         result = None
-        for i in range(num_interactions): # evaluate one interaction at a time
+        for i in range(num_interactions):  # evaluate one interaction at a time
             if i == num_interactions - 1:
                 is_last = True
 
@@ -185,6 +206,7 @@ class InteractionsEvaluator(Evaluator[InputT, OutputT]):
             result = await evaluator_agent.structured_output_async(EvaluationOutput, evaluation_prompt)
 
         return result
-    
+
+
 if __name__ == "__main__":
     pass
