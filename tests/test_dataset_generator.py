@@ -21,7 +21,7 @@ class TestDatasetGenerator:
             include_expected_output=False,
             include_expected_trajectory=True,
             include_expected_interactions=True,
-            include_meta_data=True,
+            include_metadata=True,
             model="test-model",
             max_parallel_num_cases=5,
         )
@@ -30,7 +30,7 @@ class TestDatasetGenerator:
         assert generator.include_expected_output is False
         assert generator.include_expected_trajectory is True
         assert generator.include_expected_interactions is True
-        assert generator.include_meta_data is True
+        assert generator.include_metadata is True
         assert generator.model == "test-model"
         assert generator.max_parallel_num_cases == 5
 

@@ -40,7 +40,7 @@ class DatasetGenerator(Generic[InputT, OutputT]):
         include_expected_output: bool = True,
         include_expected_trajectory: bool = False,
         include_expected_interactions: bool = False,
-        include_meta_data: bool = False,
+        include_metadata: bool = False,
         model: str | None = None,
         max_parallel_num_cases: int = 10,
         rubric_system_prompt: str = RUBRIC_SYSTEM_PROMPT,
@@ -56,7 +56,7 @@ class DatasetGenerator(Generic[InputT, OutputT]):
             include_expected_output: Whether to include expected outputs in test cases
             include_expected_trajectory: Whether to include expected tool/action trajectories
             include_expected_interactions: Whether to include expected interaction sequences
-            include_meta_data: Whether to include metadata fields in test cases
+            include_metadata: Whether to include metadata fields in test cases
             model: Model identifier for the generation agent, defaults to strands' default model.
             max_parallel_num_cases: Maximum number of test cases to generate in parallel asynchronously
             rubric_system_prompt: System prompt for rubric generation, defaults to one of the available templates.
@@ -68,7 +68,7 @@ class DatasetGenerator(Generic[InputT, OutputT]):
         self.include_expected_output = include_expected_output
         self.include_expected_trajectory = include_expected_trajectory
         self.include_expected_interactions = include_expected_interactions
-        self.include_meta_data = include_meta_data
+        self.include_metadata = include_metadata
         self.max_parallel_num_cases = max_parallel_num_cases
 
         self.rubric_system_prompt = rubric_system_prompt
@@ -82,7 +82,7 @@ class DatasetGenerator(Generic[InputT, OutputT]):
             fields["expected_trajectory"] = (list[trajectory_type], ...) if trajectory_type else (list[Any], ...)
         if self.include_expected_interactions:
             fields["expected_interactions"] = (list[Interaction], ...)
-        if self.include_meta_data:
+        if self.include_metadata:
             fields["metadata"] = (dict[str, Any], ...)
         self._Case = create_model("_Case", **fields)
 
@@ -106,12 +106,12 @@ class DatasetGenerator(Generic[InputT, OutputT]):
 
         while True:
             try:
-                queue.get_nowait()
+                difficulty = queue.get_nowait()
             except asyncio.QueueEmpty:
                 break
 
             try:
-                gen_case = await case_generator.structured_output_async(self._Case, prompt)
+                gen_case = await case_generator.structured_output_async(self._Case, prompt + f"Ensure that the test case has a difficulty level of {difficulty}.")
                 results.append(Case(**gen_case.model_dump()))
             except Exception as e:
                 print(f"Error generating case: {e}")
@@ -134,8 +134,13 @@ class DatasetGenerator(Generic[InputT, OutputT]):
         generated_cases = []
 
         # Fill queue with tasks
-        for _ in range(num_cases):
-            queue.put_nowait(None)
+        for i in range(num_cases):
+            difficulty = "medium"
+            if i < num_cases*0.3:
+                difficulty = "easy"
+            elif i > num_cases*0.8:
+                difficulty = "hard"
+            queue.put_nowait(difficulty)
 
         num_workers = min(self.max_parallel_num_cases, num_cases)
 
