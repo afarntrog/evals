@@ -40,11 +40,15 @@ hatch run list
 
 ```python
 from strands import Agent
-from strands_evaluation.dataset import Dataset
-from strands_evaluation.case import Case
-from strands_evaluation.evaluators.output_evaluator import OutputEvaluator
+from strands_evals import Case, Dataset
+from strands_evals.evaluators import OutputEvaluator
 
-# 1. Create test cases
+# 1. Define a task function
+def get_response(query: str) -> str:
+    agent = Agent(callback_handler=None)
+    return str(agent(query))
+
+# 2. Create test cases
 test_cases = [
     Case[str, str](
         name="knowledge-1",
@@ -59,25 +63,20 @@ test_cases = [
     )
 ]
 
-# 2. Create an evaluator
+# 3. Create an evaluator
 evaluator = OutputEvaluator(
     rubric="The output should represent a reasonable answer to the input."
 )
 
-# 3. Create a dataset
+# 4. Create a dataset
 dataset = Dataset[str, str](
     cases=test_cases,
     evaluator=evaluator
 )
 
-# 4. Define a task function
-def get_response(query: str) -> str:
-    agent = Agent(callback_handler=None)
-    return str(agent(query))
-
 # 5. Run evaluations
 report = dataset.run_evaluations(get_response)
-report.display()
+report.run_display()
 ```
 
 ## Saving and Loading Datasets
@@ -93,8 +92,8 @@ loaded_dataset = Dataset.from_file("./dataset_files/my_dataset.json", "json")
 ## Custom Evaluators
 
 ```python
-from strands_evaluation.evaluators.evaluator import Evaluator
-from strands_evaluation.types.evaluation import EvaluationData, EvaluationOutput
+from strands_evals.evaluators import Evaluator
+from strands_evals.types import EvaluationData, EvaluationOutput
 
 class CustomEvaluator(Evaluator[str, str]):
     def evaluate(self, evaluation_case: EvaluationData[str, str]) -> EvaluationOutput:
@@ -122,25 +121,11 @@ dataset = Dataset[str, str](
 ## Evaluating Tool Usage
 
 ```python
+from strands_evals import Case, Dataset
+from strands_evals.evaluators import TrajectoryEvaluator
 from strands_tools import calculator
-from strands_evaluation.evaluators.trajectory_evaluator import TrajectoryEvaluator
 
-# Create test cases with expected tool trajectories
-test_case = Case[str, str](
-    name="calculator-1",
-    input="What is the square root of 9?",
-    expected_output="The square root of 9 is 3.",
-    expected_trajectory=["calculator"],
-    metadata={"category": "math"}
-)
-
-# Create trajectory evaluator
-trajectory_evaluator = TrajectoryEvaluator(
-    rubric="The trajectory should represent a reasonable use of tools based on the input.",
-    include_inputs=True
-)
-
-# Define task that returns tool usage
+# 1. Define task that returns tool usage
 def get_response_with_tools(query: str) -> dict:
     agent = Agent(tools=[calculator])
     response = agent(query)
@@ -150,7 +135,22 @@ def get_response_with_tools(query: str) -> dict:
         "trajectory": list(response.metrics.tool_metrics.keys())
     }
 
-# Create dataset and run evaluations
+# 2. Create test cases with expected tool trajectories
+test_case = Case[str, str](
+    name="calculator-1",
+    input="What is the square root of 9?",
+    expected_output="The square root of 9 is 3.",
+    expected_trajectory=["calculator"],
+    metadata={"category": "math"}
+)
+
+# 3. Create trajectory evaluator
+trajectory_evaluator = TrajectoryEvaluator(
+    rubric="Scoring should measure how well the agent uses appropriate tools for the given task.",
+    include_inputs=True
+)
+
+# 4. Create dataset and run evaluations
 dataset = Dataset[str, str](
     cases=[test_case],
     evaluator=trajectory_evaluator
@@ -159,33 +159,39 @@ dataset = Dataset[str, str](
 report = dataset.run_evaluations(get_response_with_tools)
 ```
 
-## Async Evaluation
-
-For improved performance with many test cases, use async evaluation:
+## Dataset Generation
 
 ```python
-import asyncio
-from strands_evaluation.dataset import Dataset
-from strands_evaluation.evaluators.output_evaluator import OutputEvaluator
+from strands_evals.generators import DatasetGenerator
+from strands_evals.evaluators import TrajectoryEvaluator
 
-# Create dataset with cases and evaluator
-dataset = Dataset(cases=test_cases, evaluator=OutputEvaluator(rubric="Test rubric"))
+# 1. Define tool context
+tool_context = """
+Available tools:
+- calculator(expression: str) -> float: Evaluate mathematical expressions
+- web_search(query: str) -> str: Search the web for information
+"""
 
-# Define async task function (optional)
-async def async_task(query):
-    agent = Agent(callback_handler=None)
-    response = await agent.invoke_async(query)
-    return str(response)
+# 2. Generate dataset from context
+generator = DatasetGenerator[str, str](str, str)
 
-# Run evaluations asynchronously (works with both sync and async task functions)
-async def main():
-    report = await dataset.run_evaluations_async(async_task, max_workers=5)
-    report.display()
-    return report
+dataset = await generator.generate_dataset(
+    context=tool_context,
+    num_cases=10,
+    evaluator_type=TrajectoryEvaluator,
+    task_description="Math and research assistant with tool usage"
+)
 
-# Run the async function
-report = asyncio.run(main())
+# 3. Save generated dataset
+dataset.to_file("generated_math_research_dataset")
 ```
+
+## Available Evaluators
+
+- **OutputEvaluator**: Evaluates the quality and correctness of agent outputs
+- **TrajectoryEvaluator**: Evaluates the sequence of tools/actions used by agents
+- **InteractionsEvaluator**: Evaluates multi-agent interactions and handoffs
+- **Custom Evaluators**: Create your own evaluation logic by extending the base Evaluator class
 
 ## More Examples
 

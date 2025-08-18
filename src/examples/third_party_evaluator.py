@@ -6,10 +6,9 @@ from langchain.evaluation.criteria import CriteriaEvalChain
 ## Using a third party evaluator
 from langchain_aws import BedrockLLM
 from strands import Agent
-from strands_evaluation.case import Case
-from strands_evaluation.dataset import Dataset
-from strands_evaluation.evaluators.evaluator import Evaluator
-from strands_evaluation.types.evaluation import EvaluationData, EvaluationOutput
+from strands_evals import Case, Dataset
+from strands_evals.evaluators import Evaluator
+from strands_evals.types import EvaluationData, EvaluationOutput
 
 ## Need to install $pip install langchain langchain_aws ##
 
@@ -19,18 +18,22 @@ def third_party_example():
     Demonstrates integrating a third-party evaluator (LangChain) with the evaluation framework.
 
     This example:
-    1. Creates test cases with expected outputs
-    2. Creates a custom evaluator that wraps LangChain's CriteriaEvalChain
-    3. Initializes the LangChain evaluator with Bedrock LLM
+    1. Defines a task function that uses an agent to generate responses
+    2. Creates test cases with expected outputs
+    3. Creates a custom evaluator that wraps LangChain's CriteriaEvalChain
     4. Creates a dataset with the test cases and evaluator
-    5. Saves the dataset to a JSON file
-    6. Defines a task function that uses an agent to generate responses
-    7. Runs evaluations and returns the report
+    5. Runs evaluations and returns the report
 
     Returns:
         EvaluationReport: The evaluation results
     """
-    ### Step 1: Create test cases ###
+
+    ### Step 1: Define task ###
+    def get_response(query: str) -> str:
+        agent = Agent(callback_handler=None)
+        return str(agent(query))
+
+    ### Step 2: Create test cases ###
     test_case1 = Case[str, str](
         name="knowledge-1",
         input="What is the capital of France?",
@@ -47,7 +50,7 @@ def third_party_example():
     test_case3 = Case(input="When was World War 2?")
     test_case4 = Case(input="Who was the first president of the United States?")
 
-    ### Step 2: Create evaluator using a third party evaluator ###
+    ### Step 3: Create evaluator using a third party evaluator ###
     class LangChainCriteriaEvaluator(Evaluator[str, str]):
         def evaluate(self, evaluation_case: EvaluationData[str, str]) -> EvaluationOutput:
             ## Follow LangChain's Docs: https://python.langchain.com/api_reference/langchain/evaluation/langchain.evaluation.criteria.eval_chain.CriteriaEvalChain.html
@@ -72,18 +75,13 @@ def third_party_example():
                 score=result["score"], test_pass=True if result["score"] > 0.5 else False, reason=result["reasoning"]
             )
 
-    ### Step 3: Create dataset ###
+    ### Step 4: Create dataset ###
     dataset = Dataset[str, str](
         cases=[test_case1, test_case2, test_case3, test_case4], evaluator=LangChainCriteriaEvaluator()
     )
 
-    ### Step 3.5: Save the dataset ###
+    ### Step 4.5: (Optional) Save the dataset ###
     dataset.to_file("third_party_dataset", "json")
-
-    ### Step 4: Define task ###
-    def get_response(query: str) -> str:
-        agent = Agent(callback_handler=None)
-        return str(agent(query))
 
     ### Step 5: Run evaluation ###
     report = dataset.run_evaluations(get_response)
@@ -95,18 +93,23 @@ async def async_third_party_example():
     Demonstrates integrating a third-party evaluator (LangChain) with the evaluation framework asynchronously.
 
     This example:
-    1. Creates test cases with expected outputs
-    2. Creates a custom evaluator that wraps LangChain's CriteriaEvalChain
-    3. Initializes the LangChain evaluator with Bedrock LLM
+    1. Defines a task function that uses an agent to generate responses
+    2. Creates test cases with expected outputs
+    3. Creates a custom evaluator that wraps LangChain's CriteriaEvalChain
     4. Creates a dataset with the test cases and evaluator
-    5. Saves the dataset to a JSON file
-    6. Defines a task function that uses an agent to generate responses
-    7. Runs evaluations and returns the report
+    5. Runs evaluations and returns the report
 
     Returns:
         EvaluationReport: The evaluation results
     """
-    ### Step 1: Create test cases ###
+
+    ### Step 1: Define task ###
+    async def get_response(query: str) -> str:
+        agent = Agent(system_prompt="Be as concise as possible", callback_handler=None)
+        response = await agent.invoke_async(query)
+        return str(response)
+
+    ### Step 2: Create test cases ###
     test_case1 = Case[str, str](
         name="knowledge-1",
         input="What is the capital of France?",
@@ -123,7 +126,7 @@ async def async_third_party_example():
     test_case3 = Case(input="When was World War 2?")
     test_case4 = Case(input="Who was the first president of the United States?")
 
-    ### Step 2: Create evaluator using a third party evaluator ###
+    ### Step 3: Create evaluator using a third party evaluator ###
     class LangChainCriteriaEvaluator(Evaluator[str, str]):
         def evaluate(self, evaluation_case: EvaluationData[str, str]) -> EvaluationOutput:
             ## Follow LangChain's Docs: https://python.langchain.com/api_reference/langchain/evaluation/langchain.evaluation.criteria.eval_chain.CriteriaEvalChain.html
@@ -155,19 +158,13 @@ async def async_third_party_example():
         async def evaluate_async(self, evaluation_case: EvaluationData[str, str]) -> EvaluationOutput:
             return self.evaluate(evaluation_case)
 
-    ### Step 3: Create dataset ###
+    ### Step 4: Create dataset ###
     dataset = Dataset[str, str](
         cases=[test_case1, test_case2, test_case3, test_case4], evaluator=LangChainCriteriaEvaluator()
     )
 
-    ### Step 3.5: Save the dataset ###
+    ### Step 4.5: (Optional) Save the dataset ###
     dataset.to_file("async_third_party_dataset", "json")
-
-    ### Step 4: Define task ###
-    async def get_response(query: str) -> str:
-        agent = Agent(system_prompt="Be as concise as possible", callback_handler=None)
-        response = await agent.invoke_async(query)
-        return str(response)
 
     ### Step 5: Run evaluation ###
     report = await dataset.run_evaluations_async(get_response)
@@ -176,12 +173,12 @@ async def async_third_party_example():
 
 if __name__ == "__main__":
     # run the file as a module: eg. python -m examples.third_party_evaluator
-    # start = datetime.datetime.now()
-    # report = third_party_example()
-    # end = datetime.datetime.now()
-    # print("Sync: ", end - start) # Sync:  0:00:33.125273
-    # report.display()
-    # report.to_file("third_party_report", "json")
+    start = datetime.datetime.now()
+    report = third_party_example()
+    end = datetime.datetime.now()
+    print("Sync: ", end - start)  # Sync:  0:00:33.125273
+    report.display()
+    report.to_file("third_party_report", "json")
 
     start = datetime.datetime.now()
     report = asyncio.run(async_third_party_example())
