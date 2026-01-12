@@ -164,7 +164,6 @@ class Experiment(Generic[InputT, OutputT]):
             expected_interactions=case.expected_interactions,
             metadata=case.metadata,
         )
-        # TODO afarn - I think this should take kwargs not just 'case'
         task_output = task(case)
         if isinstance(task_output, dict):  # could be evaluating the trajectory as well
             evaluation_context.actual_output = task_output.get("output")
@@ -416,7 +415,6 @@ class Experiment(Generic[InputT, OutputT]):
                             }
                         )
                 except Exception as e:
-                    # Task execution failed - record failure for all evaluators and skip to next case
                     case_span.record_exception(e)
                     for evaluator in self._evaluators:
                         eval_name = evaluator.get_type_name()
@@ -428,7 +426,6 @@ class Experiment(Generic[InputT, OutputT]):
                     continue
 
                 # Evaluate with each evaluator using the same task output
-                # Each evaluator handles its own exceptions independently
                 for evaluator in self._evaluators:
                     eval_name = evaluator.get_type_name()
                     try:
@@ -457,7 +454,6 @@ class Experiment(Generic[InputT, OutputT]):
                             evaluator_data[eval_name]["reasons"].append(aggregate_reason or "")
                             evaluator_data[eval_name]["detailed_results"].append(evaluation_outputs)
                     except Exception as e:
-                        # Individual evaluator failed - only affects this evaluator
                         evaluator_data[eval_name]["cases"].append(evaluation_context.model_dump())
                         evaluator_data[eval_name]["test_passes"].append(False)
                         evaluator_data[eval_name]["scores"].append(0)
