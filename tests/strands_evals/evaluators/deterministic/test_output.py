@@ -223,5 +223,3 @@ class TestStartsWith:
         assert d["evaluator_type"] == "StartsWith"
         assert d["value"] == "Hello"
         assert d["case_sensitive"] is False
-
-

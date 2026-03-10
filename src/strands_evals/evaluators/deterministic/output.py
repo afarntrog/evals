@@ -78,5 +78,3 @@ class StartsWith(Evaluator[InputT, OutputT]):
 
     async def evaluate_async(self, evaluation_case: EvaluationData[InputT, OutputT]) -> list[EvaluationOutput]:
         return self.evaluate(evaluation_case)
-
-

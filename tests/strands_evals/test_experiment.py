@@ -9,7 +9,6 @@ from strands.types.exceptions import EventLoopException, ModelThrottledException
 from strands_evals import Case, Experiment
 from strands_evals.evaluators import (
     Contains,
-    Custom,
     Equals,
     Evaluator,
     InteractionsEvaluator,
@@ -1543,20 +1542,11 @@ def test_multiple_deterministic_evaluators_in_experiment():
             Equals(),
             Contains(value="Paris"),
             StartsWith(value="The capital"),
-            Custom(
-                fn=lambda case: [
-                    EvaluationOutput(
-                        score=1.0 if case.actual_output and len(str(case.actual_output)) < 500 else 0.0,
-                        test_pass=case.actual_output is not None and len(str(case.actual_output)) < 500,
-                        reason="Response length check",
-                    )
-                ]
-            ),
         ],
     )
     reports = experiment.run_evaluations(_simulate_agent)
 
-    assert len(reports) == 4
+    assert len(reports) == 3
     for report in reports:
         assert report.scores == [1.0]
         assert report.test_passes == [True]
@@ -1664,13 +1654,10 @@ def test_deterministic_evaluator_error_isolation():
         ),
     ]
 
-    def check_forbidden_content(_case):
-        raise ValueError("intentional failure in custom evaluator")
-
     experiment = Experiment(
         cases=cases,
         evaluators=[
-            Custom(fn=check_forbidden_content),
+            ThrowingEvaluator(),
             Equals(),
         ],
     )
@@ -1678,11 +1665,11 @@ def test_deterministic_evaluator_error_isolation():
 
     assert len(reports) == 2
 
-    # Custom failed with error isolation
+    # ThrowingEvaluator failed with error isolation
     assert reports[0].scores == [0]
     assert reports[0].test_passes == [False]
-    assert "intentional failure" in reports[0].reasons[0]
+    assert "Evaluator exploded" in reports[0].reasons[0]
 
-    # Equals still ran successfully despite the Custom failure
+    # Equals still ran successfully despite the ThrowingEvaluator failure
     assert reports[1].scores == [1.0]
     assert reports[1].test_passes == [True]
