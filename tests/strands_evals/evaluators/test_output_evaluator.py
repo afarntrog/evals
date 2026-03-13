@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from strands_evals.evaluators import OutputEvaluator
-from strands_evals.types import EvaluationData, EvaluationOutput
+from strands_evals.types import EvaluationData, EvaluationOutput, EnvironmentState
 
 
 @pytest.fixture
@@ -178,3 +178,78 @@ async def test_output_evaluator_evaluate_async_missing_actual_output():
 
     with pytest.raises(Exception, match="Please make sure the task function return the output"):
         await evaluator.evaluate_async(evaluation_data)
+
+
+def test_output_evaluator__init__uses_environment_state_defaults_false():
+    evaluator = OutputEvaluator(rubric="Test rubric")
+    assert evaluator.uses_environment_state is False
+
+
+@patch("strands_evals.evaluators.output_evaluator.Agent")
+def test_output_evaluator_evaluate_includes_environment_state_in_prompt(mock_agent_class, mock_agent):
+    mock_agent_class.return_value = mock_agent
+    evaluator = OutputEvaluator(rubric="Test rubric", uses_environment_state=True)
+    data = EvaluationData(
+        input="test",
+        actual_environment_state=[EnvironmentState(name="db", state={"rows": 5})],
+        expected_environment_state=[EnvironmentState(name="db", state={"rows": 5})],
+    )
+
+    evaluator.evaluate(data)
+
+    prompt = mock_agent.call_args[0][0]
+    assert "<ActualEnvironmentState>" in prompt
+    assert "<ExpectedEnvironmentState>" in prompt
+
+
+@patch("strands_evals.evaluators.output_evaluator.Agent")
+def test_output_evaluator_evaluate_environment_state_does_not_require_actual_output(mock_agent_class, mock_agent):
+    mock_agent_class.return_value = mock_agent
+    evaluator = OutputEvaluator(rubric="Test rubric", uses_environment_state=True)
+    data = EvaluationData(
+        input="test",
+        actual_environment_state=[EnvironmentState(name="db", state={"rows": 5})],
+    )
+
+    # Should not raise even though actual_output is None
+    evaluator.evaluate(data)
+
+
+def test_output_evaluator_evaluate_environment_state_raises_without_actual_state():
+    evaluator = OutputEvaluator(rubric="Test rubric", uses_environment_state=True)
+    data = EvaluationData(input="test")
+
+    with pytest.raises(Exception, match="environment_state"):
+        evaluator.evaluate(data)
+
+
+@patch("strands_evals.evaluators.output_evaluator.Agent")
+def test_output_evaluator_evaluate_excludes_environment_state_by_default(mock_agent_class, mock_agent):
+    mock_agent_class.return_value = mock_agent
+    evaluator = OutputEvaluator(rubric="Test rubric")
+    data = EvaluationData(
+        input="test",
+        actual_output="result",
+        actual_environment_state=[EnvironmentState(name="db", state={"rows": 5})],
+    )
+
+    evaluator.evaluate(data)
+
+    prompt = mock_agent.call_args[0][0]
+    assert "<ActualEnvironmentState>" not in prompt
+
+
+@pytest.mark.asyncio
+@patch("strands_evals.evaluators.output_evaluator.Agent")
+async def test_output_evaluator_evaluate_async_includes_environment_state(mock_agent_class, mock_async_agent):
+    mock_agent_class.return_value = mock_async_agent
+    evaluator = OutputEvaluator(rubric="Test rubric", uses_environment_state=True)
+    data = EvaluationData(
+        input="test",
+        actual_environment_state=[EnvironmentState(name="db", state={"rows": 5})],
+    )
+
+    result = await evaluator.evaluate_async(data)
+
+    assert len(result) == 1
+    assert result[0].test_pass is True

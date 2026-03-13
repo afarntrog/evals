@@ -29,12 +29,14 @@ class OutputEvaluator(Evaluator[InputT, OutputT]):
         model: Union[Model, str, None] = None,
         system_prompt: str = SYSTEM_PROMPT,
         include_inputs: bool = True,
+        uses_environment_state: bool = False,
     ):
         super().__init__()
         self.rubric = rubric
         self.model = model
         self.include_inputs = include_inputs
         self.system_prompt = system_prompt
+        self.uses_environment_state = uses_environment_state
 
     def evaluate(self, evaluation_case: EvaluationData[InputT, OutputT]) -> list[EvaluationOutput]:
         """
@@ -48,7 +50,10 @@ class OutputEvaluator(Evaluator[InputT, OutputT]):
         """
         evaluator_agent = Agent(model=self.model, system_prompt=self.system_prompt, callback_handler=None)
         evaluation_prompt = compose_test_prompt(
-            evaluation_case=evaluation_case, rubric=self.rubric, include_inputs=self.include_inputs
+            evaluation_case=evaluation_case,
+            rubric=self.rubric,
+            include_inputs=self.include_inputs,
+            uses_environment_state=self.uses_environment_state,
         )
         result = evaluator_agent(evaluation_prompt, structured_output_model=EvaluationOutput)
         return [cast(EvaluationOutput, result.structured_output)]
@@ -65,7 +70,10 @@ class OutputEvaluator(Evaluator[InputT, OutputT]):
         """
         evaluator_agent = Agent(model=self.model, system_prompt=self.system_prompt, callback_handler=None)
         evaluation_prompt = compose_test_prompt(
-            evaluation_case=evaluation_case, rubric=self.rubric, include_inputs=self.include_inputs
+            evaluation_case=evaluation_case,
+            rubric=self.rubric,
+            include_inputs=self.include_inputs,
+            uses_environment_state=self.uses_environment_state,
         )
         result = await evaluator_agent.invoke_async(evaluation_prompt, structured_output_model=EvaluationOutput)
         return [cast(EvaluationOutput, result.structured_output)]
