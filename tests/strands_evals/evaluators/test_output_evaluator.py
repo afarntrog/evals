@@ -180,6 +180,12 @@ async def test_output_evaluator_evaluate_async_missing_actual_output():
         await evaluator.evaluate_async(evaluation_data)
 
 
+def test_output_evaluator_default_system_prompt_mentions_environment_state():
+    evaluator = OutputEvaluator(rubric="Test rubric")
+    assert "<ActualEnvironmentState>" in evaluator.system_prompt
+    assert "<ExpectedEnvironmentState>" in evaluator.system_prompt
+
+
 def test_output_evaluator__init__uses_environment_state_defaults_false():
     evaluator = OutputEvaluator(rubric="Test rubric")
     assert evaluator.uses_environment_state is False
