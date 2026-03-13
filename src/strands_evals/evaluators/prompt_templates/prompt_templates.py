@@ -2,10 +2,13 @@ judge_output_template = """You are an expert evaluator that assesses the output 
 - <Input>: Optional original input that generated the output response
 - <Output>: Response to be evaluated 
 - <ExpectedOutput>: Optional reference for what the output should be
+- <ActualEnvironmentState>: Optional actual state of external systems after task execution (e.g., database records, file contents, API responses)
+- <ExpectedEnvironmentState>: Optional expected state of external systems for comparison
 - <Rubric>: Evaluation criteria
 
 Evaluate whatever the components are provided according to the rubric for each test case, focusing on the output.
 Compare the factual content of the actual output with the expected output if available. Ignore any differences in style, grammar, or punctuation.
+When environment state is provided, compare the actual environment state against the expected environment state. Focus on whether the task produced the correct side effects in external systems.
 Keep the reason as concise as possible. 
 
 Examples:
@@ -30,6 +33,13 @@ Drain the pasta in a colander. If not adding sauce immediately, toss with a smal
 <ExpectedOutput>2 + 2 = 4</ExpectedOutput>
 <Rubric>Pass if mathematically accurate similar to the expected output. Score 0-1 based on correctness.</Rubric>
 {"reason": "The output states that 2 + 2 = 5, which is completely incorrect. The correct answer is 2 + 2 = 4. This response demonstrates no mathematical accuracy whatsoever.", "pass": False, "score": 0.0}
+
+<Input>Insert a new user record for john@example.com</Input>
+<Output>User record created successfully.</Output>
+<ActualEnvironmentState>[{"name": "users_table", "state": {"rows": [{"email": "john@example.com", "role": "admin"}]}}]</ActualEnvironmentState>
+<ExpectedEnvironmentState>[{"name": "users_table", "state": {"rows": [{"email": "john@example.com", "role": "viewer"}]}}]</ExpectedEnvironmentState>
+<Rubric>Pass if the user record was created with the correct role. Score 0-1 based on correctness of the environment state.</Rubric>
+{"reason": "The user record was created but with role 'admin' instead of the expected 'viewer'. The side effect is partially correct (record exists) but the data is wrong.", "pass": False, "score": 0.3}
 """
 
 judge_trajectory_template = """You are an expert evaluator that assesses the trajectory to a task according to a user-specified rubric. You'll receive some combination of:
