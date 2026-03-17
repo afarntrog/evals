@@ -128,6 +128,7 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 "src/strands_evals/evaluators/prompt_templates/*" = ["E501"] # line-length
 "src/strands_evals/generators/prompt_template/*" = ["E501"] # line-length
+"src/strands_evals/plugins/prompt_templates/*" = ["E501"] # line-length
 
 [tool.mypy]
 # Disable strict checks that cause false positives with Generic classes
