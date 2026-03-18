@@ -26,6 +26,7 @@ from .telemetry import get_tracer, serialize
 from .telemetry._cloudwatch_logger import _send_to_cloudwatch
 from .types.evaluation import EvaluationData, InputT, OutputT
 from .types.evaluation_report import EvaluationReport
+from .types.task_store import TaskStore
 from .utils import is_throttling_error
 
 logger = logging.getLogger()
@@ -439,6 +440,7 @@ class Experiment(Generic[InputT, OutputT]):
                     "gen_ai.evaluation.case.input": serialize(case.input),
                 },
             ) as run_task_span:
+
                 @retry(
                     retry=retry_if_exception(is_throttling_error),
                     stop=stop_after_attempt(_MAX_RETRY_ATTEMPTS),
@@ -555,9 +557,7 @@ class Experiment(Generic[InputT, OutputT]):
 
         return results
 
-    def run_evaluators(
-        self, evaluation_data: list[EvaluationData[InputT, OutputT]]
-    ) -> list[EvaluationReport]:
+    def run_evaluators(self, evaluation_data: list[EvaluationData[InputT, OutputT]]) -> list[EvaluationReport]:
         """Run evaluators on pre-computed evaluation data.
 
         Evaluates each EvaluationData item with all configured evaluators, without executing
@@ -787,8 +787,7 @@ class Experiment(Generic[InputT, OutputT]):
                             original_exception = e.last_attempt.exception()
                             if original_exception is None:
                                 original_exception = Exception(
-                                    f"Evaluator {evaluator.get_type_name()} failed after"
-                                    f" {_MAX_RETRY_ATTEMPTS} retries"
+                                    f"Evaluator {evaluator.get_type_name()} failed after {_MAX_RETRY_ATTEMPTS} retries"
                                 )
                             logger.error(
                                 f"Max retry attempts ({_MAX_RETRY_ATTEMPTS}) exceeded for evaluator "
@@ -870,34 +869,72 @@ class Experiment(Generic[InputT, OutputT]):
         return self._build_reports(evaluator_data)
 
     def run_evaluations(
-        self, task: Callable[[Case[InputT, OutputT]], OutputT | dict[str, Any]]
+        self,
+        task: Callable[[Case[InputT, OutputT]], OutputT | dict[str, Any]] | None = None,
+        task_store: TaskStore | None = None,
     ) -> list[EvaluationReport]:
         """Run tasks and evaluators in sequence.
 
-        Convenience method equivalent to run_evaluators(run_tasks(task)).
+        When a task_store is provided, attempts to load existing task results from the store.
+        If no stored data exists, runs the task and saves results to the store. Without a
+        task_store, runs the task directly each time.
 
         Args:
             task: The task to run on each case. Takes a Case and returns either
-                OutputT or {"output": OutputT, "trajectory": ...}.
+                OutputT or {"output": OutputT, "trajectory": ...}. Optional when task_store
+                contains existing data.
+            task_store: Optional store for persisting task results across runs.
 
         Returns:
             A list of EvaluationReport objects, one per evaluator.
         """
-        return self.run_evaluators(self.run_tasks(task))
+        if task_store is not None:
+            evaluation_data = task_store.load()
+            if evaluation_data is not None:
+                return self.run_evaluators(evaluation_data)
+            if task is None:
+                raise ValueError("No stored data found and no task provided")
+            evaluation_data = self.run_tasks(task)
+            task_store.save(evaluation_data)
+        else:
+            if task is None:
+                raise ValueError("task is required when task_store is not provided")
+            evaluation_data = self.run_tasks(task)
+        return self.run_evaluators(evaluation_data)
 
-    async def run_evaluations_async(self, task: Callable, max_workers: int = 10) -> list[EvaluationReport]:
+    async def run_evaluations_async(
+        self,
+        task: Callable | None = None,
+        max_workers: int = 10,
+        task_store: TaskStore | None = None,
+    ) -> list[EvaluationReport]:
         """Run tasks and evaluators asynchronously in sequence.
 
-        Convenience method equivalent to run_evaluators_async(run_tasks_async(task)).
+        When a task_store is provided, attempts to load existing task results from the store.
+        If no stored data exists, runs the task and saves results to the store. Without a
+        task_store, runs the task directly each time.
 
         Args:
-            task: The task function to run on each case. Can be sync or async.
+            task: The task function to run on each case. Can be sync or async. Optional when
+                task_store contains existing data.
             max_workers: Maximum number of parallel workers (default: 10)
+            task_store: Optional store for persisting task results across runs.
 
         Returns:
             A list of EvaluationReport objects, one per evaluator.
         """
-        evaluation_data = await self.run_tasks_async(task, max_workers)
+        if task_store is not None:
+            evaluation_data = task_store.load()
+            if evaluation_data is not None:
+                return await self.run_evaluators_async(evaluation_data, max_workers)
+            if task is None:
+                raise ValueError("No stored data found and no task provided")
+            evaluation_data = await self.run_tasks_async(task, max_workers)
+            task_store.save(evaluation_data)
+        else:
+            if task is None:
+                raise ValueError("task is required when task_store is not provided")
+            evaluation_data = await self.run_tasks_async(task, max_workers)
         return await self.run_evaluators_async(evaluation_data, max_workers)
 
     def to_dict(self) -> dict:
