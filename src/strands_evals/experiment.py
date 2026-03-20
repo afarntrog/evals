@@ -46,7 +46,6 @@ def _get_label_from_score(evaluator: Evaluator, score: float) -> str:
     Args:
         evaluator: The evaluator instance
         score: The numeric score
-        default_label: Default label to return if provided and no mapping found
 
     Returns:
         The label corresponding to the score
@@ -461,7 +460,7 @@ class Experiment(Generic[InputT, OutputT]):
                         evaluation_context = _run_task_with_retry()
                         self._set_task_span_attributes(task_span, evaluation_context)
                         results.append(evaluation_context)
-                except (RetryError, Exception) as e:
+                except Exception as e:
                     error_msg = self._extract_task_error(e, case_name)
                     run_task_span.record_exception(e)
                     results.append(self._build_failed_evaluation_data(case, error_msg))
@@ -518,7 +517,7 @@ class Experiment(Generic[InputT, OutputT]):
                             evaluation_context = await _run_task_with_retry()
                             self._set_task_span_attributes(task_span, evaluation_context)
                             results[index] = evaluation_context
-                    except (RetryError, Exception) as e:
+                    except Exception as e:
                         error_msg = self._extract_task_error(e, case_name)
                         run_task_span.record_exception(e)
                         results[index] = self._build_failed_evaluation_data(case, error_msg)
@@ -731,7 +730,7 @@ class Experiment(Generic[InputT, OutputT]):
                         "gen_ai.evaluation.case.name": case_name,
                         "gen_ai.evaluation.case.input": serialize(evaluation_context.input),
                     },
-                ) as case_span:
+                ):
                     for evaluator in self._evaluators:
 
                         @retry(
@@ -786,7 +785,7 @@ class Experiment(Generic[InputT, OutputT]):
 
                                 self._log_evaluation_to_cloudwatch(
                                     evaluator=evaluator,
-                                    eval_span=case_span,
+                                    eval_span=eval_span,
                                     evaluation_context=evaluation_context,
                                     score=aggregate_score,
                                     reason=aggregate_reason or "",
