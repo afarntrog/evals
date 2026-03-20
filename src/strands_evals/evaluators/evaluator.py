@@ -96,8 +96,8 @@ class Evaluator(Generic[InputT, OutputT]):
         """
         Evaluate the performance of the task on the given test cases asynchronously.
 
-        Delegates to evaluate() via asyncio.to_thread by default. Subclasses that need
-        true async behavior can override this method.
+        Delegates to evaluate() via asyncio.to_thread by default, ensuring subclasses
+        that only implement evaluate() work in the async path.
 
         Args:
             evaluation_case: The test case with all of the neccessary context to be evaluated.
