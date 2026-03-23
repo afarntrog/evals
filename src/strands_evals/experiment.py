@@ -279,7 +279,7 @@ class Experiment(Generic[InputT, OutputT]):
         evaluator: Evaluator,
         evaluation_context: EvaluationData,
         case_name: str,
-        trace_id: str | None,
+        trace_id: str,
         session_id: str,
     ) -> dict:
         """Run a single evaluator against a case's evaluation context.
