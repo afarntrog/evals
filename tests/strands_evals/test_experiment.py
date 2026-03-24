@@ -1658,3 +1658,101 @@ def test_deterministic_evaluator_error_isolation():
     # Equals still ran successfully despite the ThrowingEvaluator failure
     assert reports[1].scores == [1.0]
     assert reports[1].test_passes == [True]
+
+
+class DictEvaluationDataStore:
+    """Simple in-memory store for testing."""
+
+    def __init__(self):
+        self._data: dict[str, EvaluationData] = {}
+
+    def load(self, case_name: str) -> EvaluationData | None:
+        return self._data.get(case_name)
+
+    def save(self, case_name: str, result: EvaluationData) -> None:
+        self._data[case_name] = result
+
+
+class TestEvaluationDataStore:
+    def test_run_evaluations_with_store_saves_results(self):
+        """First run with empty store should execute task and save results."""
+        store = DictEvaluationDataStore()
+        task_call_count = 0
+
+        def counting_task(c):
+            nonlocal task_call_count
+            task_call_count += 1
+            return c.input
+
+        cases = [Case(name="case1", input="hello", expected_output="hello")]
+        experiment = Experiment(cases=cases, evaluators=[MockEvaluator()])
+
+        experiment.run_evaluations(counting_task, evaluation_data_store=store)
+
+        assert task_call_count == 1
+        # Verify result was saved
+        loaded = store.load("case1")
+        assert loaded is not None
+        assert loaded.actual_output == "hello"
+
+    def test_run_evaluations_with_store_loads_cached_results(self):
+        """Second run with populated store should skip task and use cached results."""
+        store = DictEvaluationDataStore()
+
+        # Pre-populate the store
+        cached_data = EvaluationData(
+            input="hello",
+            actual_output="hello",
+            name="case1",
+            expected_output="hello",
+        )
+        store.save("case1", cached_data)
+
+        task_call_count = 0
+
+        def counting_task(c):
+            nonlocal task_call_count
+            task_call_count += 1
+            return c.input
+
+        cases = [Case(name="case1", input="hello", expected_output="hello")]
+        experiment = Experiment(cases=cases, evaluators=[MockEvaluator()])
+
+        reports = experiment.run_evaluations(counting_task, evaluation_data_store=store)
+
+        # Task should NOT have been called
+        assert task_call_count == 0
+        # Evaluators should still run on cached data
+        assert len(reports) == 1
+        assert reports[0].scores[0] == 1.0
+
+    def test_run_evaluations_with_store_requires_case_names(self):
+        """Should raise ValueError if any case lacks a name when store is provided."""
+        store = DictEvaluationDataStore()
+        cases = [Case(input="hello", expected_output="hello")]  # no name
+        experiment = Experiment(cases=cases, evaluators=[MockEvaluator()])
+
+        with pytest.raises(ValueError, match="name"):
+            experiment.run_evaluations(lambda c: c.input, evaluation_data_store=store)
+
+    def test_run_evaluations_with_store_requires_unique_names(self):
+        """Should raise ValueError if case names are not unique when store is provided."""
+        store = DictEvaluationDataStore()
+        cases = [
+            Case(name="dupe", input="a", expected_output="a"),
+            Case(name="dupe", input="b", expected_output="b"),
+        ]
+        experiment = Experiment(cases=cases, evaluators=[MockEvaluator()])
+
+        with pytest.raises(ValueError, match="unique"):
+            experiment.run_evaluations(lambda c: c.input, evaluation_data_store=store)
+
+    def test_run_evaluations_without_store_unchanged(self):
+        """Default behavior without store should be unaffected."""
+        cases = [Case(name="case1", input="hello", expected_output="hello")]
+        experiment = Experiment(cases=cases, evaluators=[MockEvaluator()])
+
+        reports = experiment.run_evaluations(lambda c: c.input)
+
+        assert len(reports) == 1
+        assert reports[0].scores[0] == 1.0

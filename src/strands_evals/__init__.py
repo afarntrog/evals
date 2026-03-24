@@ -1,5 +1,6 @@
 from . import evaluators, extractors, generators, providers, simulation, telemetry, types
 from .case import Case
+from .evaluation_data_store import EvaluationDataStore
 from .experiment import Experiment
 from .simulation import ActorSimulator, UserSimulator
 from .telemetry import StrandsEvalsTelemetry, get_tracer
@@ -7,6 +8,7 @@ from .telemetry import StrandsEvalsTelemetry, get_tracer
 __all__ = [
     "Experiment",
     "Case",
+    "EvaluationDataStore",
     "evaluators",
     "extractors",
     "providers",
