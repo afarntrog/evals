@@ -4,15 +4,15 @@ from .types.evaluation import EvaluationData
 
 
 @runtime_checkable
-class TaskResultStore(Protocol):
-    """Protocol for loading and saving task results.
+class EvaluationDataStore(Protocol):
+    """Protocol for loading and saving evaluation data.
 
     Implementations can use any storage backend (local files, S3, databases, etc.)
     as long as they implement the load and save methods.
     """
 
     def load(self, case_name: str) -> EvaluationData | None:
-        """Load a cached task result by case name.
+        """Load cached evaluation data by case name.
 
         Args:
             case_name: The name of the case to load results for.
@@ -23,7 +23,7 @@ class TaskResultStore(Protocol):
         ...
 
     def save(self, case_name: str, result: EvaluationData) -> None:
-        """Save a task result for a case.
+        """Save evaluation data for a case.
 
         Args:
             case_name: The name of the case to save results for.

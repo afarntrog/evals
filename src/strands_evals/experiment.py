@@ -22,7 +22,7 @@ from .evaluators.evaluator import Evaluator
 from .evaluators.interactions_evaluator import InteractionsEvaluator
 from .evaluators.output_evaluator import OutputEvaluator
 from .evaluators.trajectory_evaluator import TrajectoryEvaluator
-from .task_result_store import TaskResultStore
+from .evaluation_data_store import EvaluationDataStore
 from .telemetry import get_tracer, serialize
 from .telemetry._cloudwatch_logger import _send_to_cloudwatch
 from .types.evaluation import EvaluationData, InputT, OutputT
@@ -161,12 +161,12 @@ class Experiment(Generic[InputT, OutputT]):
         missing_names = [i for i, case in enumerate(self._cases) if case.name is None]
         if missing_names:
             raise ValueError(
-                f"All cases must have a name when using a task_result_store. "
+                f"All cases must have a name when using an evaluation_data_store. "
                 f"Cases at indices {missing_names} are missing names."
             )
         case_names = [case.name for case in self._cases]
         if len(case_names) != len(set(case_names)):
-            raise ValueError("All case names must be unique when using a task_result_store.")
+            raise ValueError("All case names must be unique when using an evaluation_data_store.")
 
     async def _run_task_async(
         self, task: Callable[[Case[InputT, OutputT]], OutputT | dict[str, Any]], case: Case[InputT, OutputT]
@@ -416,7 +416,7 @@ class Experiment(Generic[InputT, OutputT]):
         queue: asyncio.Queue,
         task: Callable,
         results: list,
-        task_result_store: TaskResultStore | None = None,
+        evaluation_data_store: EvaluationDataStore | None = None,
     ):
         """
         Worker that processes cases from the queue. Run evaluation on the task.
@@ -425,7 +425,7 @@ class Experiment(Generic[InputT, OutputT]):
             queue: Queue containing cases to process
             task: Task function to run on each case
             results: List to store results
-            task_result_store: Optional store for loading/saving task results
+            evaluation_data_store: Optional store for loading/saving evaluation data
         """
         while True:
             try:
@@ -447,15 +447,15 @@ class Experiment(Generic[InputT, OutputT]):
                     try:
                         # Try loading cached result from store
                         cached_result = None
-                        if task_result_store is not None:
-                            cached_result = await asyncio.to_thread(task_result_store.load, case.name)
+                        if evaluation_data_store is not None:
+                            cached_result = await asyncio.to_thread(evaluation_data_store.load, case.name)
 
                         if cached_result is not None:
                             evaluation_context = cached_result
                         else:
                             evaluation_context = await self._execute_task(task, case, case_name)
-                            if task_result_store is not None:
-                                await asyncio.to_thread(task_result_store.save, case.name, evaluation_context)
+                            if evaluation_data_store is not None:
+                                await asyncio.to_thread(evaluation_data_store.save, case.name, evaluation_context)
                         trace_id = format_trace_id(case_span.get_span_context().trace_id)
 
                         # Evaluate with each evaluator
@@ -500,7 +500,7 @@ class Experiment(Generic[InputT, OutputT]):
     def run_evaluations(
         self,
         task: Callable[[Case[InputT, OutputT]], OutputT | dict[str, Any]],
-        task_result_store: TaskResultStore | None = None,
+        evaluation_data_store: EvaluationDataStore | None = None,
     ) -> list[EvaluationReport]:
         """
         Run the evaluations for all of the test cases with all evaluators.
@@ -510,8 +510,8 @@ class Experiment(Generic[InputT, OutputT]):
         Args:
             task: The task to run the test case on. This function should take in InputT and returns either
                 OutputT or {"output": OutputT, "trajectory": ...}.
-            task_result_store: Optional store for loading/saving task results. When provided, cached results
-                are loaded instead of running the task, and new results are saved after task execution.
+            evaluation_data_store: Optional store for loading/saving evaluation data. When provided, cached
+                results are loaded instead of running the task, and new results are saved after task execution.
 
         Return:
             A list of EvaluationReport objects, one for each evaluator, containing the overall score,
@@ -520,10 +520,10 @@ class Experiment(Generic[InputT, OutputT]):
         if asyncio.iscoroutinefunction(task):
             raise ValueError("Async task is not supported. Please use run_evaluations_async instead.")
 
-        return asyncio.run(self.run_evaluations_async(task, max_workers=1, task_result_store=task_result_store))
+        return asyncio.run(self.run_evaluations_async(task, max_workers=1, evaluation_data_store=evaluation_data_store))
 
     async def run_evaluations_async(
-        self, task: Callable, max_workers: int = 10, task_result_store: TaskResultStore | None = None
+        self, task: Callable, max_workers: int = 10, evaluation_data_store: EvaluationDataStore | None = None
     ) -> list[EvaluationReport]:
         """
         Run evaluations asynchronously using a queue for parallel processing.
@@ -533,13 +533,13 @@ class Experiment(Generic[InputT, OutputT]):
                 either OutputT or {"output": OutputT, "trajectory": ...}. The task can either run
                 synchronously or asynchronously.
             max_workers: Maximum number of parallel workers (default: 10)
-            task_result_store: Optional store for loading/saving task results. When provided, cached results
-                are loaded instead of running the task, and new results are saved after task execution.
+            evaluation_data_store: Optional store for loading/saving evaluation data. When provided, cached
+                results are loaded instead of running the task, and new results are saved after task execution.
 
         Returns:
             List of EvaluationReport objects, one for each evaluator, containing evaluation results
         """
-        if task_result_store is not None:
+        if evaluation_data_store is not None:
             self._validate_case_names()
 
         queue: asyncio.Queue[Case[InputT, OutputT]] = asyncio.Queue()
@@ -551,7 +551,7 @@ class Experiment(Generic[InputT, OutputT]):
         num_workers = min(max_workers, len(self._cases))
 
         workers = [
-            asyncio.create_task(self._worker(queue, task, results, task_result_store)) for _ in range(num_workers)
+            asyncio.create_task(self._worker(queue, task, results, evaluation_data_store)) for _ in range(num_workers)
         ]
 
         await queue.join()
