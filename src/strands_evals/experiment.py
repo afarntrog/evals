@@ -523,7 +523,10 @@ class Experiment(Generic[InputT, OutputT]):
         return asyncio.run(self.run_evaluations_async(task, max_workers=1, evaluation_data_store=evaluation_data_store))
 
     async def run_evaluations_async(
-        self, task: Callable, max_workers: int = 10, evaluation_data_store: EvaluationDataStore | None = None
+        self,
+        task: Callable,
+        max_workers: int = 10,
+        evaluation_data_store: EvaluationDataStore | None = None,
     ) -> list[EvaluationReport]:
         """
         Run evaluations asynchronously using a queue for parallel processing.
