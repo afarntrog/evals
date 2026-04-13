@@ -8,34 +8,51 @@ from .mappers.strands_in_memory_session_mapper import StrandsInMemorySessionMapp
 from .telemetry import StrandsEvalsTelemetry
 
 
-def create_agent_task(agent_factory: Callable[[], Any]) -> Callable[[Case], dict[str, Any]]:
-    """Wrap an agent factory into a task function for use with Experiment.run_evaluations.
-
-    Per invocation, this:
-    1. Clears the shared in-memory span exporter
-    2. Creates a fresh Agent from the factory
-    3. Calls agent(case.input)
-    4. Collects finished spans and maps them to a Session
-    5. Returns {"output": ..., "trajectory": session}
+class AgentTask:
+    """A task that creates a fresh Agent per case and invokes it with case.input.
 
     Args:
         agent_factory: A no-arg callable that returns a strands Agent instance.
 
-    Returns:
-        A task callable that takes a Case and returns a structured dict.
+    Example:
+        task = AgentTask(lambda: Agent(model="...", tools=[calculator]))
+        experiment.run_evaluations(task=task)
     """
-    telemetry = StrandsEvalsTelemetry().setup_in_memory_exporter()
-    mapper = StrandsInMemorySessionMapper()
 
-    def task(case: Case) -> dict[str, Any]:
-        telemetry.in_memory_exporter.clear()
+    def __init__(self, agent_factory: Callable[[], Any]):
+        self._agent_factory = agent_factory
 
-        agent = agent_factory()
+    def __call__(self, case: Case) -> dict[str, Any]:
+        agent = self._agent_factory()
+        result = agent(case.input)
+        return {"output": str(result)}
+
+
+class TracedAgentTask(AgentTask):
+    """An AgentTask that also collects OpenTelemetry spans and maps them to a Session.
+
+    Use this when your evaluators need trajectory data (e.g., TrajectoryEvaluator).
+
+    Args:
+        agent_factory: A no-arg callable that returns a strands Agent instance.
+
+    Example:
+        task = TracedAgentTask(lambda: Agent(model="...", tools=[calculator]))
+        experiment.run_evaluations(task=task)
+    """
+
+    def __init__(self, agent_factory: Callable[[], Any]):
+        super().__init__(agent_factory)
+        self._telemetry = StrandsEvalsTelemetry().setup_in_memory_exporter()
+        self._mapper = StrandsInMemorySessionMapper()
+
+    def __call__(self, case: Case) -> dict[str, Any]:
+        self._telemetry.in_memory_exporter.clear()
+
+        agent = self._agent_factory()
         result = agent(case.input)
 
-        spans = list(telemetry.in_memory_exporter.get_finished_spans())
-        session = mapper.map_to_session(spans, case.session_id)
+        spans = list(self._telemetry.in_memory_exporter.get_finished_spans())
+        session = self._mapper.map_to_session(spans, case.session_id)
 
         return {"output": str(result), "trajectory": session}
-
-    return task

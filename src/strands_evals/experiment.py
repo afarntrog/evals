@@ -16,7 +16,6 @@ from tenacity import (
 )
 from typing_extensions import Any, Generic
 
-from .agent_task_adapter import create_agent_task
 from .case import Case
 from .evaluation_data_store import EvaluationDataStore
 from .evaluators.deterministic import Contains, Equals, StartsWith, StateEquals, ToolCalled
@@ -501,9 +500,8 @@ class Experiment(Generic[InputT, OutputT]):
 
     def run_evaluations(
         self,
-        task: Callable[[Case[InputT, OutputT]], OutputT | dict[str, Any]] | None = None,
+        task: Callable[[Case[InputT, OutputT]], OutputT | dict[str, Any]],
         evaluation_data_store: EvaluationDataStore | None = None,
-        agent_factory: Callable[[], Any] | None = None,
     ) -> list[EvaluationReport]:
         """
         Run the evaluations for all of the test cases with all evaluators.
@@ -515,22 +513,11 @@ class Experiment(Generic[InputT, OutputT]):
                 OutputT or {"output": OutputT, "trajectory": ...}.
             evaluation_data_store: Optional store for loading/saving evaluation data. When provided, cached
                 results are loaded instead of running the task, and new results are saved after task execution.
-            agent_factory: A no-arg callable that returns a strands Agent. When provided, the agent
-                is automatically invoked with case.input and telemetry/span collection is handled
-                internally. Mutually exclusive with task.
 
         Return:
             A list of EvaluationReport objects, one for each evaluator, containing the overall score,
             individual case results, and basic feedback for each test case.
         """
-        if task is not None and agent_factory is not None:
-            raise ValueError("Cannot specify both 'task' and 'agent_factory'. Use one or the other.")
-        if task is None and agent_factory is None:
-            raise ValueError("Must specify either 'task' or 'agent_factory'.")
-
-        if agent_factory is not None:
-            task = create_agent_task(agent_factory)
-
         if asyncio.iscoroutinefunction(task):
             raise ValueError("Async task is not supported. Please use run_evaluations_async instead.")
 
@@ -538,10 +525,9 @@ class Experiment(Generic[InputT, OutputT]):
 
     async def run_evaluations_async(
         self,
-        task: Callable | None = None,
+        task: Callable,
         max_workers: int = 10,
         evaluation_data_store: EvaluationDataStore | None = None,
-        agent_factory: Callable[[], Any] | None = None,
     ) -> list[EvaluationReport]:
         """
         Run evaluations asynchronously using a queue for parallel processing.
@@ -553,21 +539,10 @@ class Experiment(Generic[InputT, OutputT]):
             max_workers: Maximum number of parallel workers (default: 10)
             evaluation_data_store: Optional store for loading/saving evaluation data. When provided, cached
                 results are loaded instead of running the task, and new results are saved after task execution.
-            agent_factory: A no-arg callable that returns a strands Agent. When provided, the agent
-                is automatically invoked with case.input and telemetry/span collection is handled
-                internally. Mutually exclusive with task.
 
         Returns:
             List of EvaluationReport objects, one for each evaluator, containing evaluation results
         """
-        if task is not None and agent_factory is not None:
-            raise ValueError("Cannot specify both 'task' and 'agent_factory'. Use one or the other.")
-        if task is None and agent_factory is None:
-            raise ValueError("Must specify either 'task' or 'agent_factory'.")
-
-        if agent_factory is not None:
-            task = create_agent_task(agent_factory)
-
         if evaluation_data_store is not None:
             self._validate_case_names()
 
