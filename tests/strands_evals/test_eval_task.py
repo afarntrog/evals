@@ -16,7 +16,7 @@ class TestEvalTaskDecorator:
 
         assert callable(my_task)
 
-    def test_passes_case_to_function(self):
+    def test_passes_case_to_function_with_case_param(self):
         received_case = None
 
         @eval_task()
@@ -28,6 +28,45 @@ class TestEvalTaskDecorator:
         case = Case(name="test", input="hello")
         my_task(case)
         assert received_case is case
+
+    def test_no_case_param_function_works(self):
+        """Functions with no parameters are called without case."""
+        @eval_task()
+        def my_task():
+            return "output"
+
+        result = my_task(Case(name="test", input="hi"))
+        assert result == {"output": "output"}
+
+    def test_agent_return_auto_invoked(self):
+        """When function returns an Agent, decorator invokes it with case.input."""
+        from strands import Agent
+
+        mock_agent = MagicMock(spec=Agent)
+        mock_agent.return_value.__str__ = MagicMock(return_value="42")
+
+        @eval_task()
+        def my_task():
+            return mock_agent
+
+        result = my_task(Case(name="test", input="What is 2+2?"))
+        mock_agent.assert_called_once_with("What is 2+2?")
+        assert result["output"] == "42"
+
+    def test_agent_return_with_case_param(self):
+        """Agent returned from function with case param is also auto-invoked."""
+        from strands import Agent
+
+        mock_agent = MagicMock(spec=Agent)
+        mock_agent.return_value.__str__ = MagicMock(return_value="answer")
+
+        @eval_task()
+        def my_task(case):
+            return mock_agent
+
+        result = my_task(Case(name="test", input="question"))
+        mock_agent.assert_called_once_with("question")
+        assert result["output"] == "answer"
 
     def test_string_return_wrapped_as_dict(self):
         @eval_task()
@@ -45,14 +84,6 @@ class TestEvalTaskDecorator:
         result = my_task(Case(name="test", input="hi"))
         assert result == {"output": "answer", "custom_key": "value"}
 
-    def test_works_without_handler(self):
-        @eval_task()
-        def my_task(case):
-            return "output"
-
-        result = my_task(Case(name="test", input="hi"))
-        assert result == {"output": "output"}
-
     def test_works_with_experiment(self):
         from strands_evals.evaluators.evaluator import Evaluator
         from strands_evals.experiment import Experiment
@@ -62,9 +93,14 @@ class TestEvalTaskDecorator:
             def evaluate(self, evaluation_case):
                 return [EvaluationOutput(score=1.0, test_pass=True, reason="pass")]
 
+        from strands import Agent
+
+        mock_agent = MagicMock(spec=Agent)
+        mock_agent.return_value.__str__ = MagicMock(return_value="output")
+
         @eval_task()
-        def my_task(case):
-            return "output"
+        def my_task():
+            return mock_agent
 
         experiment = Experiment(
             cases=[Case(name="test", input="hi")],

@@ -1,8 +1,11 @@
 """Decorator and handlers for wrapping task functions with evaluation behavior."""
 
 import functools
+import inspect
 from collections.abc import Callable
 from typing import Any
+
+from strands import Agent
 
 from .case import Case
 from .mappers.strands_in_memory_session_mapper import StrandsInMemorySessionMapper
@@ -44,12 +47,8 @@ class TracedHandler(EvalTaskHandler):
 
     Example:
         @eval_task(TracedHandler())
-        def my_task(case):
-            return str(my_agent(case.input))
-
-        @eval_task(TracedHandler(mapper=MyCustomMapper()))
-        def my_task(case):
-            return str(my_agent(case.input))
+        def my_task():
+            return Agent(model="...", tools=[calculator])
     """
 
     def __init__(self, mapper=None):
@@ -69,32 +68,49 @@ class TracedHandler(EvalTaskHandler):
         return processed
 
 
+def _accepts_case(fn: Callable) -> bool:
+    """Check if a function accepts a positional argument."""
+    sig = inspect.signature(fn)
+    params = [p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+    return len(params) >= 1
+
+
 def eval_task(handler: EvalTaskHandler | None = None) -> Callable:
     """Decorator that wraps a task function with evaluation behavior.
+
+    The decorated function can:
+    - Take no arguments (simple) or a Case argument (for per-case customization)
+    - Return an Agent (auto-invoked with case.input), a string, or a dict
 
     Args:
         handler: Handler that runs before/after the task function.
             Defaults to EvalTaskHandler (normalizes return values only).
 
     Example:
-        # Simple — just normalize output
         @eval_task()
-        def my_task(case):
-            return str(my_agent(case.input))
+        def my_task():
+            return Agent(model="...", tools=[calculator])
 
-        # With telemetry collection
         @eval_task(TracedHandler())
         def my_task(case):
-            return str(my_agent(case.input))
+            tools = [calculator] if case.metadata.get("use_calc") else []
+            return Agent(model="...", tools=tools)
     """
     if handler is None:
         handler = EvalTaskHandler()
 
-    def decorator(fn: Callable[[Case], Any]) -> Callable[[Case], dict[str, Any]]:
+    def decorator(fn: Callable) -> Callable[[Case], dict[str, Any]]:
+        takes_case = _accepts_case(fn)
+
         @functools.wraps(fn)
         def wrapper(case: Case) -> dict[str, Any]:
             handler.before(case)
-            result = fn(case)
+
+            result = fn(case) if takes_case else fn()
+
+            if isinstance(result, Agent):
+                result = str(result(case.input))
+
             return handler.after(case, result)
 
         return wrapper
